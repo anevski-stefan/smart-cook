@@ -37,6 +37,7 @@ interface CookingAssistantProps {
   instructions: Instruction[];
   ingredients: Array<{ id: string; name: string; amount: number; unit: string }>;
   onComplete?: () => void;
+  onStepChange?: (step: { id: number; text: string; description?: string }) => void;
 }
 
 interface StepNote {
@@ -44,7 +45,7 @@ interface StepNote {
   note: string;
 }
 
-export default function CookingAssistant({ instructions, ingredients, onComplete }: CookingAssistantProps) {
+export default function CookingAssistant({ instructions, ingredients, onComplete, onStepChange }: CookingAssistantProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -232,6 +233,17 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
       .reduce((acc, instruction) => acc + (instruction.duration || 0), 0);
     return Math.min((completedTime / totalTimeRemaining) * 100, 100);
   };
+
+  useEffect(() => {
+    if (currentStep >= 0 && currentStep < instructions.length && onStepChange) {
+      const step = instructions[currentStep];
+      onStepChange({
+        id: currentStep,
+        text: step.text,
+        description: step.description
+      });
+    }
+  }, [currentStep, instructions, onStepChange]);
 
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3 }}>

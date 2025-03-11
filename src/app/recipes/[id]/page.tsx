@@ -27,6 +27,7 @@ import AddToShoppingList from '@/components/AddToShoppingList';
 import NutritionalInfo from '@/components/NutritionalInfo';
 import RecipeIngredients from '@/components/RecipeIngredients';
 import CookingAssistant from '@/components/CookingAssistant';
+import CameraAssistant from '@/components/CameraAssistant';
 
 export default function RecipePage() {
   const { id } = useParams();
@@ -35,6 +36,11 @@ export default function RecipePage() {
     (state: RootState) => state.recipes
   );
   const [notification, setNotification] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<{
+    id: number;
+    text: string;
+    description?: string;
+  } | undefined>();
 
   useEffect(() => {
     const fetchRecipe = async () => {
@@ -151,6 +157,19 @@ export default function RecipePage() {
                       onComplete={() => {
                         setNotification('Congratulations! You have completed the recipe!');
                       }}
+                      onStepChange={(step) => {
+                        setCurrentStep(step);
+                      }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <CameraAssistant 
+                      currentStep={currentStep}
+                      ingredients={currentRecipe.ingredients.map(ingredient => ({
+                        ...ingredient,
+                        amount: ingredient.amount.toString()
+                      }))}
                     />
                   </Grid>
                 </Grid>
