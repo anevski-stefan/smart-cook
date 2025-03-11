@@ -256,13 +256,19 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
   };
 
   const toggleStepCompletion = (stepIndex: number) => {
+    // Only allow completing current step or uncompleting any previous step
+    if (stepIndex > currentStep) {
+      setNotification("Please complete the steps in order");
+      return;
+    }
+
     setCompletedSteps(prev => {
       const newSet = new Set(prev);
       if (newSet.has(stepIndex)) {
         newSet.delete(stepIndex);
       } else {
         newSet.add(stepIndex);
-        // Move to next step when marking as complete
+        // Move to next step when marking current step as complete
         if (stepIndex === currentStep && stepIndex < instructions.length - 1) {
           setCurrentStep(stepIndex + 1);
           checkIngredients(stepIndex + 1);
@@ -285,7 +291,7 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
           sx={{ height: 8, borderRadius: 4 }}
         />
         <Typography variant="body2" color="text.secondary" align="right" sx={{ mt: 1 }}>
-          Progress: {progress}%
+          Progress: {progress}% {totalTimeRemaining > 0 && `(Active cooking time: ${Math.round(totalTimeRemaining)} min)`}
         </Typography>
       </Box>
 
@@ -376,9 +382,19 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
                         size="small" 
                         label={currentStep === index && stepTimeRemaining !== null ? 
                           `${formatTime(stepTimeRemaining)} left` :
-                          `${instruction.duration} min`}
-                        color={currentStep === index && isPlaying ? "primary" : "default"}
+                          instruction.duration >= 120 ? // If duration is 2 hours or more
+                            `Wait ${instruction.duration / 60} hours` :
+                            `${instruction.duration} min`}
+                        color={currentStep === index && isPlaying ? 
+                          instruction.duration >= 120 ? "default" : "primary" 
+                          : "default"}
                         variant="outlined"
+                        sx={{
+                          bgcolor: instruction.duration >= 120 ? 'action.hover' : 'transparent',
+                          '& .MuiChip-label': {
+                            fontStyle: instruction.duration >= 120 ? 'italic' : 'normal'
+                          }
+                        }}
                       />
                     )}
                   </Box>
@@ -387,10 +403,11 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
                       onClick={() => toggleStepCompletion(index)}
                       size="small"
                       color="success"
+                      disabled={index > currentStep}
                       sx={{
                         '&:hover': {
                           '& .MuiSvgIcon-root': {
-                            opacity: 0.7
+                            opacity: index > currentStep ? 0.3 : 0.7
                           }
                         }
                       }}
@@ -398,7 +415,8 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
                       <CheckCircle 
                         sx={{ 
                           opacity: completedSteps.has(index) ? 1 : 0.3,
-                          transition: 'opacity 0.2s'
+                          transition: 'opacity 0.2s',
+                          color: index > currentStep ? 'action.disabled' : 'success.main'
                         }} 
                       />
                     </IconButton>

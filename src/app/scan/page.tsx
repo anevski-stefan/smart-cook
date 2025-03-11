@@ -31,6 +31,7 @@ import {
   setLoading, 
   setError,
   addUserIngredient,
+  deleteScannedIngredient,
 } from '@/store/slices/ingredientSlice';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/utils/supabase-client';
@@ -504,24 +505,39 @@ export default function ScanPage() {
                         </Typography>
                       }
                     />
-                    <IconButton
-                      edge="end"
-                      aria-label="save"
-                      onClick={() => setDialogState({
-                        open: true,
-                        ingredient,
-                        amount: (ingredient.quantity || 1).toString(),
-                        unit: ingredient.unit || 'piece',
-                      })}
-                      sx={{
-                        color: 'primary.main',
-                        '&:hover': {
-                          bgcolor: 'primary.lighter',
-                        }
-                      }}
-                    >
-                      <Save />
-                    </IconButton>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <IconButton
+                        edge="end"
+                        aria-label="delete"
+                        onClick={() => dispatch(deleteScannedIngredient(ingredient.id))}
+                        sx={{
+                          color: 'error.main',
+                          '&:hover': {
+                            bgcolor: 'error.lighter',
+                          }
+                        }}
+                      >
+                        <Delete />
+                      </IconButton>
+                      <IconButton
+                        edge="end"
+                        aria-label="save"
+                        onClick={() => setDialogState({
+                          open: true,
+                          ingredient,
+                          amount: (ingredient.quantity || 1).toString(),
+                          unit: ingredient.unit || 'piece',
+                        })}
+                        sx={{
+                          color: 'primary.main',
+                          '&:hover': {
+                            bgcolor: 'primary.lighter',
+                          }
+                        }}
+                      >
+                        <Save />
+                      </IconButton>
+                    </Box>
                   </ListItem>
                 ))}
                 {scannedIngredients.length === 0 && !loading && !error && (

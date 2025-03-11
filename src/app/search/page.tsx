@@ -14,7 +14,10 @@ import {
   Box,
   CircularProgress,
   Pagination,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import Navbar from '@/components/Navbar';
 import RecipeCard from '@/components/RecipeCard';
 import type { Recipe } from '@/types/ingredient';
@@ -32,14 +35,17 @@ export default function SearchPage() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!query.trim()) return;
+    
     setLoading(true);
+    setPage(1); // Reset to first page on new search
     
     try {
       const searchParams = new URLSearchParams({
         query,
         ...(cuisine && { cuisine }),
         ...(diet && { diet }),
-        offset: ((page - 1) * ITEMS_PER_PAGE).toString(),
+        offset: '0', // Start from first page
         number: ITEMS_PER_PAGE.toString(),
       });
 
@@ -57,12 +63,8 @@ export default function SearchPage() {
     }
   };
 
-  const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
+  const handlePageChange = async (_: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
-    fetchRecipes();
-  };
-
-  const fetchRecipes = async () => {
     setLoading(true);
     
     try {
@@ -70,7 +72,7 @@ export default function SearchPage() {
         query,
         ...(cuisine && { cuisine }),
         ...(diet && { diet }),
-        offset: ((page - 1) * ITEMS_PER_PAGE).toString(),
+        offset: ((value - 1) * ITEMS_PER_PAGE).toString(),
         number: ITEMS_PER_PAGE.toString(),
       });
 
@@ -96,15 +98,54 @@ export default function SearchPage() {
           Search Recipes
         </Typography>
 
-        <Box component="form" onSubmit={handleSearch} sx={{ mb: 4 }}>
+        <Box sx={{ mb: 4 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Search recipes"
+                placeholder="Search recipes..."
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Enter keywords (e.g., chicken pasta)"
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                }}
+                variant="outlined"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSearch(e);
+                        }}
+                        aria-label="search recipes"
+                        disabled={loading || !query.trim()}
+                        sx={{
+                          mr: 1,
+                          color: '#666666',
+                          '&:hover': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                          }
+                        }}
+                      >
+                        <SearchIcon sx={{ fontSize: 24 }} />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                  sx: {
+                    backgroundColor: '#F5F5F5',
+                    borderRadius: '12px',
+                    '& fieldset': { border: 'none' },
+                    '&:hover fieldset': { border: 'none' },
+                    '&.Mui-focused fieldset': { border: 'none' }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSearch(e);
+                  }
+                }}
               />
             </Grid>
 
@@ -152,10 +193,17 @@ export default function SearchPage() {
                 variant="contained"
                 fullWidth
                 size="large"
-                disabled={loading}
-                sx={{ height: '56px' }}
+                disabled={loading || !query.trim()}
+                startIcon={<SearchIcon />}
+                sx={{ 
+                  height: '56px',
+                  bgcolor: 'primary.main',
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                  },
+                }}
               >
-                {loading ? <CircularProgress size={24} /> : 'Search'}
+                {loading ? <CircularProgress size={24} color="inherit" /> : 'Search'}
               </Button>
             </Grid>
           </Grid>

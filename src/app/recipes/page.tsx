@@ -2,25 +2,24 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Grid, Typography, TextField, Box, CircularProgress } from '@mui/material';
+import { Container, Grid, Typography, TextField, Box, CircularProgress, InputAdornment, IconButton } from '@mui/material';
 import { RootState } from '@/store/store';
 import { setRecipes, appendRecipes, setLoading, setError } from '@/store/slices/recipeSlice';
 import RecipeCard from '@/components/RecipeCard';
 import Navbar from '@/components/Navbar';
-
-// Debounce delay in milliseconds
-const DEBOUNCE_DELAY = 500;
+import { Search as SearchIcon } from '@mui/icons-material';
 
 export default function RecipesPage() {
   const dispatch = useDispatch();
   const { recipes, loading, error } = useSelector((state: RootState) => state.recipes);
   const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
   const shouldResetPageRef = useRef(false);
+  const currentSearchTerm = useRef('');
+  const currentPage = useRef(1);
+  const initialLoadDone = useRef(false);
 
   const fetchRecipes = useCallback(async (pageNum: number, searchQuery: string) => {
     dispatch(setLoading(true));
@@ -61,38 +60,31 @@ export default function RecipesPage() {
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
-        setPage(prevPage => prevPage + 1);
+        currentPage.current += 1;
+        fetchRecipes(currentPage.current, currentSearchTerm.current);
       }
     });
     if (node) observer.current.observe(node);
-  }, [loading, hasMore]);
+  }, [loading, hasMore, fetchRecipes]);
 
-  // Handle search and pagination
+  const handleSearch = useCallback((e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!searchTerm.trim()) return;
+    
+    shouldResetPageRef.current = true;
+    currentSearchTerm.current = searchTerm;
+    currentPage.current = 1;
+    fetchRecipes(1, searchTerm);
+  }, [searchTerm, fetchRecipes]);
+
+  // Load initial recipes only once when component mounts
   useEffect(() => {
-    const handleSearch = () => {
-      if (searchTimeout.current) {
-        clearTimeout(searchTimeout.current);
-      }
-
-      searchTimeout.current = setTimeout(() => {
-        shouldResetPageRef.current = true;
-        setPage(1);
-        fetchRecipes(1, searchTerm);
-      }, DEBOUNCE_DELAY);
-    };
-
-    if (shouldResetPageRef.current) {
-      handleSearch();
-    } else {
-      fetchRecipes(page, searchTerm);
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      currentPage.current = 1;
+      fetchRecipes(1, '');
     }
-
-    return () => {
-      if (searchTimeout.current) {
-        clearTimeout(searchTimeout.current);
-      }
-    };
-  }, [page, searchTerm, fetchRecipes]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -107,8 +99,48 @@ export default function RecipesPage() {
           variant="outlined"
           placeholder="Search recipes..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => {
+            // Only update the input value, don't trigger any fetches
+            setSearchTerm(e.target.value);
+          }}
           sx={{ mb: 4 }}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSearch(e);
+                  }}
+                  aria-label="search recipes"
+                  disabled={loading || !searchTerm.trim()}
+                  sx={{
+                    mr: 1,
+                    color: '#666666',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                    }
+                  }}
+                >
+                  <SearchIcon sx={{ fontSize: 24 }} />
+                </IconButton>
+              </InputAdornment>
+            ),
+            sx: {
+              backgroundColor: '#F5F5F5',
+              borderRadius: '12px',
+              '& fieldset': { border: 'none' },
+              '&:hover fieldset': { border: 'none' },
+              '&.Mui-focused fieldset': { border: 'none' }
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSearch(e);
+            }
+          }}
         />
 
         <Grid container spacing={3}>

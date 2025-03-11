@@ -46,6 +46,11 @@ const ingredientSlice = createSlice({
     clearScannedIngredients: (state) => {
       state.scannedIngredients = [];
     },
+    deleteScannedIngredient: (state, action: PayloadAction<string>) => {
+      state.scannedIngredients = state.scannedIngredients.filter(
+        ingredient => ingredient.id !== action.payload
+      );
+    },
     addUserIngredient: (state, action: PayloadAction<UserIngredient>) => {
       state.userIngredients.push(action.payload);
     },
@@ -62,6 +67,7 @@ export const {
   addScannedIngredient,
   setScannedIngredients,
   clearScannedIngredients,
+  deleteScannedIngredient,
   addUserIngredient,
   setLoading,
   setError,
