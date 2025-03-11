@@ -119,6 +119,13 @@ export default function Navbar() {
                 </MenuItem>
                 <MenuItem 
                   component={Link} 
+                  href="/ingredients"
+                  onClick={handleClose}
+                >
+                  My Ingredients
+                </MenuItem>
+                <MenuItem 
+                  component={Link} 
                   href="/shopping-list"
                   onClick={handleClose}
                 >

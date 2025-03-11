@@ -6,14 +6,25 @@ interface ScannedIngredient {
   image: string;
 }
 
+interface UserIngredient {
+  id: string;
+  user_id: string;
+  name: string;
+  amount: number;
+  unit: string;
+  created_at: string;
+}
+
 interface IngredientState {
   scannedIngredients: ScannedIngredient[];
+  userIngredients: UserIngredient[];
   loading: boolean;
   error: string | null;
 }
 
 const initialState: IngredientState = {
   scannedIngredients: [],
+  userIngredients: [],
   loading: false,
   error: null,
 };
@@ -30,6 +41,20 @@ const ingredientSlice = createSlice({
       state.scannedIngredients = [];
       state.error = null;
     },
+    setUserIngredients: (state, action: PayloadAction<UserIngredient[]>) => {
+      state.userIngredients = action.payload;
+      state.error = null;
+    },
+    addUserIngredient: (state, action: PayloadAction<UserIngredient>) => {
+      state.userIngredients.push(action.payload);
+      state.error = null;
+    },
+    removeUserIngredient: (state, action: PayloadAction<string>) => {
+      state.userIngredients = state.userIngredients.filter(
+        (ingredient) => ingredient.id !== action.payload
+      );
+      state.error = null;
+    },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
     },
@@ -42,6 +67,9 @@ const ingredientSlice = createSlice({
 export const {
   addScannedIngredient,
   clearScannedIngredients,
+  setUserIngredients,
+  addUserIngredient,
+  removeUserIngredient,
   setLoading,
   setError,
 } = ingredientSlice.actions;

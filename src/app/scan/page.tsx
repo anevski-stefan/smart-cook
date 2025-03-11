@@ -3,10 +3,38 @@
 import { useState, useCallback, useRef, useEffect, ChangeEvent } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Webcam from 'react-webcam';
-import { Container, Typography, Button, Box, Paper, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
-import { PhotoCamera, Delete } from '@mui/icons-material';
+import { 
+  Container, 
+  Typography, 
+  Button, 
+  Box, 
+  Paper, 
+  List, 
+  ListItem, 
+  ListItemText, 
+  CircularProgress,
+  ListItemSecondaryAction,
+  IconButton,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  MenuItem,
+  Snackbar,
+  Alert,
+} from '@mui/material';
+import { PhotoCamera, Delete, Save } from '@mui/icons-material';
 import { RootState } from '@/store/store';
-import { addScannedIngredient, clearScannedIngredients, setLoading, setError } from '@/store/slices/ingredientSlice';
+import { 
+  addScannedIngredient, 
+  clearScannedIngredients, 
+  setLoading, 
+  setError,
+  addUserIngredient,
+} from '@/store/slices/ingredientSlice';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/utils/supabase-client';
 import Navbar from '@/components/Navbar';
 
 interface ScannedIngredient {
@@ -15,17 +43,40 @@ interface ScannedIngredient {
   image: string;
 }
 
+interface IngredientDialogState {
+  open: boolean;
+  ingredient: ScannedIngredient | null;
+  amount: string;
+  unit: string;
+}
+
+const DEFAULT_UNITS = [
+  'g',
+  'kg',
+  'ml',
+  'l',
+  'cup',
+  'tbsp',
+  'tsp',
+  'piece',
+  'whole',
+];
+
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export default function ScanPage() {
+  const { user } = useAuth();
   const dispatch = useDispatch();
-  const { scannedIngredients, loading, error } = useSelector((state: RootState) => state.ingredients as {
-    scannedIngredients: ScannedIngredient[];
-    loading: boolean;
-    error: string | null;
-  });
+  const { scannedIngredients, loading, error } = useSelector((state: RootState) => state.ingredients);
   const [useNativeCamera, setUseNativeCamera] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; severity: 'success' | 'error' }>({ message: '', severity: 'success' });
+  const [dialogState, setDialogState] = useState<IngredientDialogState>({
+    open: false,
+    ingredient: null,
+    amount: '1',
+    unit: 'piece',
+  });
   const webcamRef = useRef<Webcam>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -40,6 +91,52 @@ export default function ScanPage() {
       dispatch(setError(''));
     }
   }, [dispatch]);
+
+  const handleSaveIngredient = async () => {
+    if (!dialogState.ingredient || !user) return;
+
+    try {
+      const { data, error: dbError } = await supabase
+        .from('user_ingredients')
+        .insert({
+          user_id: user.id,
+          name: dialogState.ingredient.name,
+          amount: parseFloat(dialogState.amount),
+          unit: dialogState.unit,
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      if (data) {
+        dispatch(addUserIngredient(data));
+        setNotification({
+          message: `${dialogState.ingredient.name} added to your ingredients!`,
+          severity: 'success'
+        });
+      }
+    } catch (err) {
+      console.error('Error saving ingredient:', err);
+      setNotification({
+        message: 'Failed to save ingredient',
+        severity: 'error'
+      });
+    } finally {
+      setDialogState(prev => ({ ...prev, open: false }));
+    }
+  };
+
+  const handleCameraError = useCallback(() => {
+    setUseNativeCamera(true);
+    setIsCameraReady(false);
+  }, []);
+
+  useEffect(() => {
+    if (webcamRef.current) {
+      setIsCameraReady(true);
+    }
+  }, [webcamRef]);
 
   const processImage = async (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -142,11 +239,6 @@ export default function ScanPage() {
     }
   }, []);
 
-  const handleCameraError = useCallback(() => {
-    setUseNativeCamera(true);
-    setIsCameraReady(false);
-  }, []);
-
   const captureImage = useCallback(async () => {
     if (useNativeCamera) {
       fileInputRef.current?.click();
@@ -206,7 +298,7 @@ export default function ScanPage() {
             <Paper sx={{ p: 2, mb: 2 }}>
               {!useNativeCamera ? (
                 <Webcam
-                  ref={handleWebcamRef}
+                  ref={webcamRef}
                   screenshotFormat="image/jpeg"
                   style={{ width: '100%', borderRadius: 4 }}
                   videoConstraints={{ facingMode: 'environment' }}
@@ -282,6 +374,20 @@ export default function ScanPage() {
                 {scannedIngredients.map((ingredient: ScannedIngredient) => (
                   <ListItem key={ingredient.id}>
                     <ListItemText primary={ingredient.name} />
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        edge="end"
+                        aria-label="save"
+                        onClick={() => setDialogState({
+                          open: true,
+                          ingredient,
+                          amount: '1',
+                          unit: 'piece',
+                        })}
+                      >
+                        <Save />
+                      </IconButton>
+                    </ListItemSecondaryAction>
                   </ListItem>
                 ))}
                 {scannedIngredients.length === 0 && (
@@ -296,6 +402,58 @@ export default function ScanPage() {
             </Paper>
           </Box>
         </Box>
+
+        <Dialog open={dialogState.open} onClose={() => setDialogState(prev => ({ ...prev, open: false }))}>
+          <DialogTitle>Save Ingredient</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="subtitle1">
+                {dialogState.ingredient?.name}
+              </Typography>
+              <TextField
+                label="Amount"
+                type="number"
+                value={dialogState.amount}
+                onChange={(e) => setDialogState(prev => ({ ...prev, amount: e.target.value }))}
+                fullWidth
+              />
+              <TextField
+                select
+                label="Unit"
+                value={dialogState.unit}
+                onChange={(e) => setDialogState(prev => ({ ...prev, unit: e.target.value }))}
+                fullWidth
+              >
+                {DEFAULT_UNITS.map((unit) => (
+                  <MenuItem key={unit} value={unit}>
+                    {unit}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDialogState(prev => ({ ...prev, open: false }))}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveIngredient} variant="contained" color="primary">
+              Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar
+          open={!!notification.message}
+          autoHideDuration={6000}
+          onClose={() => setNotification({ message: '', severity: 'success' })}
+        >
+          <Alert 
+            onClose={() => setNotification({ message: '', severity: 'success' })} 
+            severity={notification.severity}
+          >
+            {notification.message}
+          </Alert>
+        </Snackbar>
       </Container>
     </>
   );
