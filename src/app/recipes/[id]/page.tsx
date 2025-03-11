@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Container,
   Typography,
@@ -9,6 +9,8 @@ import {
   Box,
   CircularProgress,
   Chip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import GroupIcon from '@mui/icons-material/Group';
@@ -23,8 +25,8 @@ import SaveRecipeButton from '@/components/SaveRecipeButton';
 import RecipeRating from '@/components/RecipeRating';
 import AddToShoppingList from '@/components/AddToShoppingList';
 import NutritionalInfo from '@/components/NutritionalInfo';
-import RecipeInstructions from '@/components/RecipeInstructions';
 import RecipeIngredients from '@/components/RecipeIngredients';
+import CookingAssistant from '@/components/CookingAssistant';
 
 export default function RecipePage() {
   const { id } = useParams();
@@ -32,6 +34,7 @@ export default function RecipePage() {
   const { currentRecipe, loading, error } = useSelector(
     (state: RootState) => state.recipes
   );
+  const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchRecipe = async () => {
@@ -58,101 +61,118 @@ export default function RecipePage() {
     }
   }, [id, dispatch]);
 
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <Container maxWidth="lg" sx={{ mt: 4 }}>
-          <Box display="flex" justifyContent="center">
-            <CircularProgress />
-          </Box>
-        </Container>
-      </>
-    );
-  }
-
-  if (error || !currentRecipe) {
-    return (
-      <>
-        <Navbar />
-        <Container maxWidth="lg" sx={{ mt: 4 }}>
-          <Typography color="error">{error || 'Recipe not found'}</Typography>
-        </Container>
-      </>
-    );
-  }
-
   return (
     <>
       <Navbar />
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Grid container spacing={4}>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        {loading ? (
+          <Box display="flex" justifyContent="center" my={4}>
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        ) : currentRecipe ? (
+          <Grid container spacing={3}>
             <Grid item xs={12}>
-              <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h4" component="h1">
-                  {currentRecipe.title}
-                </Typography>
-                <Box>
+              <Paper elevation={2} sx={{ p: 3, position: 'relative' }}>
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 16,
+                    right: 16,
+                    display: 'flex',
+                    gap: 1,
+                  }}
+                >
                   <SaveRecipeButton recipeId={currentRecipe.id} />
                   <AddToShoppingList ingredients={currentRecipe.ingredients} />
                 </Box>
-              </Box>
-            </Grid>
 
-            <Grid item xs={12} md={6}>
-              <Box
-                component="img"
-                src={currentRecipe.image}
-                alt={currentRecipe.title}
-                sx={{
-                  width: '100%',
-                  height: 'auto',
-                  borderRadius: 2,
-                }}
-              />
-            </Grid>
+                <Typography variant="h4" component="h1" gutterBottom>
+                  {currentRecipe.title}
+                </Typography>
 
-            <Grid item xs={12} md={6}>
-              <Typography variant="body1" paragraph>
-                {currentRecipe.description}
-              </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <Box
+                      component="img"
+                      src={currentRecipe.image}
+                      alt={currentRecipe.title}
+                      sx={{
+                        width: '100%',
+                        height: 'auto',
+                        borderRadius: 2,
+                        mb: 2,
+                      }}
+                    />
+                  </Grid>
 
-              <Box display="flex" gap={2} flexWrap="wrap" mb={3}>
-                <Chip
-                  icon={<AccessTimeIcon />}
-                  label={`${currentRecipe.readyInMinutes} minutes`}
-                />
-                <Chip
-                  icon={<GroupIcon />}
-                  label={`${currentRecipe.servings} servings`}
-                />
-                <Chip
-                  icon={<RestaurantIcon />}
-                  label={currentRecipe.cuisine}
-                />
-                <Chip
-                  icon={<SignalCellularAltIcon />}
-                  label={currentRecipe.difficulty}
-                />
-              </Box>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body1" paragraph>
+                      {currentRecipe.description}
+                    </Typography>
 
-              <Box mb={3}>
-                <NutritionalInfo nutritionalInfo={currentRecipe.nutritionalInfo} />
-              </Box>
+                    <Box display="flex" gap={2} flexWrap="wrap" mb={3}>
+                      <Chip
+                        icon={<AccessTimeIcon />}
+                        label={`${currentRecipe.readyInMinutes} minutes`}
+                      />
+                      <Chip
+                        icon={<GroupIcon />}
+                        label={`${currentRecipe.servings} servings`}
+                      />
+                      <Chip
+                        icon={<RestaurantIcon />}
+                        label={currentRecipe.cuisine}
+                      />
+                      <Chip
+                        icon={<SignalCellularAltIcon />}
+                        label={currentRecipe.difficulty}
+                      />
+                    </Box>
 
-              <RecipeRating recipeId={currentRecipe.id} />
-            </Grid>
+                    <Box mb={3}>
+                      <NutritionalInfo nutritionalInfo={currentRecipe.nutritionalInfo} />
+                    </Box>
 
-            <Grid item xs={12} md={6}>
-              <RecipeIngredients ingredients={currentRecipe.ingredients} />
-            </Grid>
+                    <RecipeRating recipeId={currentRecipe.id} />
+                  </Grid>
 
-            <Grid item xs={12} md={6}>
-              <RecipeInstructions instructions={currentRecipe.instructions} />
+                  <Grid item xs={12} md={4}>
+                    <RecipeIngredients ingredients={currentRecipe.ingredients} />
+                  </Grid>
+
+                  <Grid item xs={12} md={8}>
+                    <CookingAssistant 
+                      instructions={currentRecipe.instructions}
+                      ingredients={currentRecipe.ingredients}
+                      onComplete={() => {
+                        setNotification('Congratulations! You have completed the recipe!');
+                      }}
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
             </Grid>
           </Grid>
-        </Paper>
+        ) : null}
+
+        <Snackbar
+          open={!!notification}
+          autoHideDuration={6000}
+          onClose={() => setNotification(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setNotification(null)} 
+            severity="success"
+            variant="filled"
+          >
+            {notification}
+          </Alert>
+        </Snackbar>
       </Container>
     </>
   );

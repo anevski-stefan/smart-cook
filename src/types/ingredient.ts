@@ -6,8 +6,10 @@ export interface Ingredient {
 }
 
 export interface Instruction {
-  number: number;
-  step: string;
+  id: string;
+  text: string;
+  duration?: number; // Optional duration in minutes
+  timerRequired?: boolean;
 }
 
 export interface NutritionalInfo {
