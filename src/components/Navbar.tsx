@@ -16,8 +16,6 @@ import {
   Drawer,
   List,
   ListItem,
-  ListItemText,
-  ListItemIcon,
   Divider
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
@@ -32,7 +30,8 @@ import {
   BookmarkBorder,
   Kitchen,
   ShoppingCart,
-  Logout
+  Logout,
+  Close
 } from '@mui/icons-material';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
@@ -76,7 +75,7 @@ export default function Navbar() {
   const navigationItems = [
     { text: 'Home', path: '/', icon: <Home /> },
     { text: 'Recipes', path: '/recipes', icon: <Book /> },
-    { text: 'Scan Ingredients', path: '/scan', icon: <CameraAlt /> },
+    ...(user ? [{ text: 'Scan Ingredients', path: '/scan', icon: <CameraAlt /> }] : []),
   ];
 
   const userMenuItems = user ? [
@@ -98,9 +97,28 @@ export default function Navbar() {
         },
       }}
     >
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center',
+        p: 2,
+        borderBottom: 1,
+        borderColor: 'divider',
+      }}>
+        <IconButton
+          onClick={handleMobileMenuToggle}
+          edge="start"
+          sx={{ mr: 1 }}
+        >
+          <Close />
+        </IconButton>
+        <Typography variant="h6">
+          Menu
+        </Typography>
+      </Box>
+
       {user && (
         <Box sx={{ 
-          p: 2.5, 
+          p: 2,
           borderBottom: 1, 
           borderColor: 'divider',
           display: 'flex',
@@ -119,7 +137,7 @@ export default function Navbar() {
             </Avatar>
           )}
           <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+            <Typography variant="subtitle1">
               {user.email}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -129,43 +147,36 @@ export default function Navbar() {
         </Box>
       )}
 
-      <List sx={{ pt: user ? 1 : 2 }}>
+      <List sx={{ pt: 1 }}>
         {navigationItems.map((item) => (
           <ListItem 
             key={item.text} 
             disablePadding
-            component="button"
-            onClick={() => handleNavigation(item.path)}
-            sx={{ 
-              width: '100%', 
-              textAlign: 'left',
-              py: 0.5,
-              '&:hover': {
-                bgcolor: 'action.hover',
-              },
-            }}
           >
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              px: 2,
-              py: 1.5,
-              width: '100%',
-              gap: 2
-            }}>
-              <ListItemIcon sx={{ 
-                minWidth: 'auto',
-                color: 'primary.main'
-              }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={item.text}
-                primaryTypographyProps={{
-                  sx: { fontWeight: 500 }
-                }}
-              />
-            </Box>
+            <Button
+              fullWidth
+              onClick={() => handleNavigation(item.path)}
+              sx={{ 
+                justifyContent: 'flex-start',
+                px: 3,
+                py: 2,
+                color: 'text.primary',
+                textTransform: 'none',
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                letterSpacing: 0.2,
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+                '& .MuiButton-startIcon': {
+                  color: 'primary.main',
+                  '& svg': { fontSize: 22 }
+                }
+              }}
+              startIcon={item.icon}
+            >
+              {item.text}
+            </Button>
           </ListItem>
         ))}
 
@@ -176,114 +187,87 @@ export default function Navbar() {
               <ListItem 
                 key={item.text} 
                 disablePadding
-                component="button"
-                onClick={() => handleNavigation(item.path)}
-                sx={{ 
-                  width: '100%', 
-                  textAlign: 'left',
-                  py: 0.5,
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                  },
-                }}
               >
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  px: 2,
-                  py: 1.5,
-                  width: '100%',
-                  gap: 2
-                }}>
-                  <ListItemIcon sx={{ 
-                    minWidth: 'auto',
-                    color: 'text.secondary'
-                  }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      sx: { fontWeight: 500 }
-                    }}
-                  />
-                </Box>
+                <Button
+                  fullWidth
+                  onClick={() => handleNavigation(item.path)}
+                  sx={{ 
+                    justifyContent: 'flex-start',
+                    px: 3,
+                    py: 2,
+                    color: 'text.primary',
+                    textTransform: 'none',
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                    letterSpacing: 0.2,
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                    },
+                    '& .MuiButton-startIcon': {
+                      color: 'text.secondary',
+                      '& svg': { fontSize: 22 }
+                    }
+                  }}
+                  startIcon={item.icon}
+                >
+                  {item.text}
+                </Button>
               </ListItem>
             ))}
-            <ListItem 
-              disablePadding
-              component="button"
-              onClick={handleSignOut}
-              sx={{ 
-                width: '100%', 
-                textAlign: 'left',
-                py: 0.5,
-                mt: 1,
-                color: 'error.main',
-                '&:hover': {
-                  bgcolor: 'error.lighter',
-                },
-              }}
-            >
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                px: 2,
-                py: 1.5,
-                width: '100%',
-                gap: 2
-              }}>
-                <ListItemIcon sx={{ 
-                  minWidth: 'auto',
-                  color: 'error.main'
-                }}>
-                  <Logout />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Sign Out"
-                  primaryTypographyProps={{
-                    sx: { fontWeight: 500 }
-                  }}
-                />
-              </Box>
+            <ListItem disablePadding>
+              <Button
+                fullWidth
+                onClick={handleSignOut}
+                sx={{ 
+                  justifyContent: 'flex-start',
+                  px: 3,
+                  py: 2,
+                  color: 'error.main',
+                  textTransform: 'none',
+                  fontSize: '0.95rem',
+                  fontWeight: 500,
+                  letterSpacing: 0.2,
+                  '&:hover': {
+                    bgcolor: 'error.lighter',
+                  },
+                  '& .MuiButton-startIcon': {
+                    color: 'error.main',
+                    '& svg': { fontSize: 22 }
+                  }
+                }}
+                startIcon={<Logout />}
+              >
+                Sign Out
+              </Button>
             </ListItem>
           </>
         )}
         {!user && (
-          <ListItem 
-            disablePadding
-            component="button"
-            onClick={() => handleNavigation('/auth/login')}
-            sx={{ 
-              width: '100%', 
-              textAlign: 'left',
-              py: 0.5,
-              '&:hover': {
-                bgcolor: 'action.hover',
-              },
-            }}
-          >
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              px: 2,
-              py: 1.5,
-              width: '100%',
-              gap: 2
-            }}>
-              <ListItemIcon sx={{ 
-                minWidth: 'auto',
-                color: 'primary.main'
-              }}>
-                <Person />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Sign In"
-                primaryTypographyProps={{
-                  sx: { fontWeight: 500 }
-                }}
-              />
-            </Box>
+          <ListItem disablePadding>
+            <Button
+              fullWidth
+              onClick={() => handleNavigation('/auth/login')}
+              sx={{ 
+                justifyContent: 'flex-start',
+                px: 3,
+                py: 2,
+                color: 'text.primary',
+                textTransform: 'none',
+                fontSize: '0.95rem',
+                fontWeight: 500,
+                letterSpacing: 0.2,
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+                '& .MuiButton-startIcon': {
+                  color: 'primary.main',
+                  '& svg': { fontSize: 22 }
+                }
+              }}
+              startIcon={<Person />}
+            >
+              Sign In
+            </Button>
           </ListItem>
         )}
       </List>

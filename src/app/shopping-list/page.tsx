@@ -19,6 +19,8 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -38,6 +40,8 @@ interface ShoppingListItem {
 
 export default function ShoppingListPage() {
   const { user } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -156,17 +160,38 @@ export default function ShoppingListPage() {
   return (
     <ProtectedRoute>
       <Navbar />
-      <Container maxWidth="md" sx={{ mt: 4 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4" component="h1">
+      <Container maxWidth="md" sx={{ mt: 4, px: { xs: 2, sm: 3 } }}>
+        <Box 
+          display="flex" 
+          flexDirection={{ xs: 'column', sm: 'row' }} 
+          justifyContent="space-between" 
+          alignItems={{ xs: 'stretch', sm: 'center' }} 
+          gap={2}
+          mb={3}
+        >
+          <Typography 
+            variant="h4" 
+            component="h1"
+            sx={{
+              fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' },
+              mb: { xs: 1, sm: 0 }
+            }}
+          >
             Shopping List
           </Typography>
-          <Box>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              gap: 2,
+              flexDirection: { xs: 'row' },
+              width: { xs: '100%', sm: 'auto' }
+            }}
+          >
             <Button
               variant="outlined"
               onClick={() => setOpenDialog(true)}
               startIcon={<AddIcon />}
-              sx={{ mr: 2 }}
+              fullWidth={isMobile}
             >
               Add Item
             </Button>
@@ -175,6 +200,7 @@ export default function ShoppingListPage() {
               color="error"
               onClick={handleClearChecked}
               disabled={!items.some((item) => item.checked)}
+              fullWidth={isMobile}
             >
               Clear Checked
             </Button>
@@ -186,14 +212,14 @@ export default function ShoppingListPage() {
             <CircularProgress />
           </Box>
         ) : items.length === 0 ? (
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: { xs: 2, sm: 3 } }}>
             <Typography color="text.secondary" align="center">
               Your shopping list is empty.
             </Typography>
           </Paper>
         ) : (
-          <Paper>
-            <List>
+          <Paper sx={{ overflow: 'hidden' }}>
+            <List sx={{ width: '100%' }}>
               {items.map((item) => (
                 <ListItem
                   key={item.id}
@@ -201,62 +227,102 @@ export default function ShoppingListPage() {
                   sx={{
                     textDecoration: item.checked ? 'line-through' : 'none',
                     color: item.checked ? 'text.disabled' : 'text.primary',
+                    px: { xs: 1, sm: 2 },
+                    py: { xs: 1.5, sm: 2 },
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    gap: { xs: 1, sm: 0 }
                   }}
                 >
-                  <Checkbox
-                    edge="start"
-                    checked={item.checked}
-                    onChange={() => handleToggleCheck(item.id)}
-                  />
-                  <ListItemText
-                    primary={item.name}
-                    secondary={`${item.amount} ${item.unit}`}
-                  />
-                  <ListItemSecondaryAction>
-                    <IconButton
-                      edge="end"
-                      aria-label="delete"
-                      onClick={() => handleDeleteItem(item.id)}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </ListItemSecondaryAction>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    width: '100%'
+                  }}>
+                    <Checkbox
+                      edge="start"
+                      checked={item.checked}
+                      onChange={() => handleToggleCheck(item.id)}
+                    />
+                    <ListItemText
+                      primary={
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontSize: { xs: '1rem', sm: '1.1rem' },
+                            wordBreak: 'break-word'
+                          }}
+                        >
+                          {item.name}
+                        </Typography>
+                      }
+                      secondary={
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontSize: { xs: '0.875rem', sm: '1rem' },
+                            color: 'text.secondary'
+                          }}
+                        >
+                          {`${item.amount} ${item.unit}`}
+                        </Typography>
+                      }
+                    />
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        edge="end"
+                        aria-label="delete"
+                        onClick={() => handleDeleteItem(item.id)}
+                        sx={{ ml: { xs: 0, sm: 1 } }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </Box>
                 </ListItem>
               ))}
             </List>
           </Paper>
         )}
 
-        <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <Dialog 
+          open={openDialog} 
+          onClose={() => setOpenDialog(false)}
+          fullWidth
+          maxWidth="sm"
+        >
           <DialogTitle>Add Item to Shopping List</DialogTitle>
           <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Item Name"
-              fullWidth
-              value={newItem.name}
-              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-            />
-            <TextField
-              margin="dense"
-              label="Amount"
-              type="number"
-              fullWidth
-              value={newItem.amount}
-              onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })}
-            />
-            <TextField
-              margin="dense"
-              label="Unit"
-              fullWidth
-              value={newItem.unit}
-              onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-            />
+            <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField
+                autoFocus
+                label="Item Name"
+                fullWidth
+                value={newItem.name}
+                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              />
+              <TextField
+                label="Amount"
+                type="number"
+                fullWidth
+                value={newItem.amount}
+                onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })}
+              />
+              <TextField
+                label="Unit"
+                fullWidth
+                value={newItem.unit}
+                onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+              />
+            </Box>
           </DialogContent>
-          <DialogActions>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
             <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-            <Button onClick={handleAddItem} variant="contained">
+            <Button 
+              onClick={handleAddItem} 
+              variant="contained"
+              disabled={!newItem.name || !newItem.amount || !newItem.unit}
+            >
               Add
             </Button>
           </DialogActions>

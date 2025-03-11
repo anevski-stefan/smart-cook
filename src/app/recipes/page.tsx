@@ -41,8 +41,9 @@ export default function RecipesPage() {
         throw new Error(data.message || 'Failed to fetch recipes');
       }
       
-      if (pageNum === 1) {
+      if (shouldResetPageRef.current || pageNum === 1) {
         dispatch(setRecipes(data.results));
+        shouldResetPageRef.current = false;
       } else {
         dispatch(appendRecipes(data.results));
       }
@@ -74,16 +75,14 @@ export default function RecipesPage() {
       }
 
       searchTimeout.current = setTimeout(() => {
+        shouldResetPageRef.current = true;
+        setPage(1);
         fetchRecipes(1, searchTerm);
-        if (page !== 1) {
-          setPage(1);
-        }
       }, DEBOUNCE_DELAY);
     };
 
     if (shouldResetPageRef.current) {
       handleSearch();
-      shouldResetPageRef.current = false;
     } else {
       fetchRecipes(page, searchTerm);
     }
@@ -94,11 +93,6 @@ export default function RecipesPage() {
       }
     };
   }, [page, searchTerm, fetchRecipes]);
-
-  // Update shouldResetPage when search term changes
-  useEffect(() => {
-    shouldResetPageRef.current = true;
-  }, [searchTerm]);
 
   return (
     <>

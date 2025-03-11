@@ -17,6 +17,8 @@ import {
   Chip,
   Card,
   CardContent,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -43,6 +45,8 @@ interface StepNote {
 }
 
 export default function CookingAssistant({ instructions, ingredients, onComplete, onStepChange, totalRecipeTime }: CookingAssistantProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
@@ -285,43 +289,66 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
-        <IconButton
-          onClick={() => setIsPlaying(prev => !prev)}
-          color="primary"
-        >
-          {isPlaying ? <Pause /> : <PlayArrow />}
-        </IconButton>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <IconButton
+            onClick={() => setIsPlaying(prev => !prev)}
+            color="primary"
+            size={isMobile ? "small" : "medium"}
+          >
+            {isPlaying ? <Pause /> : <PlayArrow />}
+          </IconButton>
 
-        <IconButton
-          onClick={() => setShowTempDialog(true)}
-          color="primary"
-        >
-          <DeviceThermostat />
-        </IconButton>
+          <IconButton
+            onClick={() => setShowTempDialog(true)}
+            color="primary"
+            size={isMobile ? "small" : "medium"}
+          >
+            <DeviceThermostat />
+          </IconButton>
 
-        <IconButton
-          onClick={() => setShowNoteDialog(true)}
-          color="primary"
-        >
-          <Edit />
-        </IconButton>
+          <IconButton
+            onClick={() => setShowNoteDialog(true)}
+            color="primary"
+            size={isMobile ? "small" : "medium"}
+          >
+            <Edit />
+          </IconButton>
+        </Box>
 
         {totalTimeRemaining > 0 && (
-          <>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              gap: 1, 
+              flexWrap: 'wrap',
+              flex: { xs: '1 0 100%', sm: '0 1 auto' },
+              mt: { xs: 1, sm: 0 }
+            }}
+          >
             <Chip
               label={`Active Time: ${formatTime(totalTimeRemaining * 60)}`}
               color="secondary"
               variant="outlined"
+              size={isMobile ? "small" : "medium"}
+              sx={{ 
+                flex: { xs: 1, sm: 'none' },
+                maxWidth: { xs: 'calc(50% - 4px)', sm: 'none' }
+              }}
             />
             {totalRecipeTime && totalRecipeTime !== totalTimeRemaining && (
               <Chip
                 label={`Total Time: ${totalRecipeTime} min`}
                 color="default"
                 variant="outlined"
+                size={isMobile ? "small" : "medium"}
+                sx={{ 
+                  flex: { xs: 1, sm: 'none' },
+                  maxWidth: { xs: 'calc(50% - 4px)', sm: 'none' }
+                }}
               />
             )}
-          </>
+          </Box>
         )}
       </Box>
 

@@ -1,43 +1,61 @@
 import { NextResponse } from 'next/server';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
 
 export async function POST(request: Request) {
   try {
     // First verify that we have an API key
     if (!GEMINI_API_KEY) {
-      console.error('Missing GEMINI_API_KEY environment variable');
+      console.error('Missing NEXT_PUBLIC_GEMINI_API_KEY environment variable');
       return NextResponse.json(
-        { error: 'Server configuration error' },
+        { error: 'API key not configured' },
         { status: 500 }
       );
     }
 
-    const { image } = await request.json();
+    let base64Image: string;
+    const contentType = request.headers.get('content-type') || '';
 
-    if (!image) {
-      return NextResponse.json(
-        { error: 'No image provided' },
-        { status: 400 }
-      );
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      const imageFile = formData.get('image') as File;
+      
+      if (!imageFile) {
+        return NextResponse.json(
+          { error: 'No image provided' },
+          { status: 400 }
+        );
+      }
+
+      // Validate image data
+      if (!imageFile.type.startsWith('image/')) {
+        return NextResponse.json(
+          { error: 'Invalid image format' },
+          { status: 400 }
+        );
+      }
+
+      base64Image = await convertFileToBase64(imageFile);
+    } else {
+      // Handle JSON request
+      const { image } = await request.json();
+      
+      if (!image) {
+        return NextResponse.json(
+          { error: 'No image provided' },
+          { status: 400 }
+        );
+      }
+
+      // Remove the data URL prefix if present
+      base64Image = image.replace(/^data:image\/\w+;base64,/, '');
     }
-
-    // Validate image data
-    if (!image.startsWith('data:image/')) {
-      return NextResponse.json(
-        { error: 'Invalid image format' },
-        { status: 400 }
-      );
-    }
-
-    // Remove the data URL prefix to get just the base64 image data
-    const base64Image = image.replace(/^data:image\/\w+;base64,/, '');
 
     // Validate base64 data
     try {
       atob(base64Image);
-    } catch (e) {
+    } catch (error) {
       return NextResponse.json(
         { error: 'Invalid base64 image data' },
         { status: 400 }
@@ -81,24 +99,30 @@ export async function POST(request: Request) {
       });
       
       if (response.status === 401) {
-        console.error('API Key authentication failed');
         return NextResponse.json(
-          { error: 'Server configuration error' },
-          { status: 500 }
+          { error: 'Invalid API key' },
+          { status: 401 }
         );
       }
       
-      // Return a more user-friendly error message
       return NextResponse.json(
-        { error: 'Unable to analyze image. Please try again with a clearer photo.' },
-        { status: 500 }
+        { error: `API Error: ${response.status} - ${errorData}` },
+        { status: response.status }
       );
     }
 
     const data = await response.json();
     console.log('Gemini API Response:', JSON.stringify(data, null, 2));
     
-    const ingredientsText = data.candidates[0]?.content?.parts[0]?.text?.trim();
+    if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+      console.error('Invalid response format:', data);
+      return NextResponse.json(
+        { error: 'Invalid response from API' },
+        { status: 500 }
+      );
+    }
+
+    const ingredientsText = data.candidates[0].content.parts[0].text.trim();
 
     if (!ingredientsText || ingredientsText.toLowerCase() === 'unknown') {
       return NextResponse.json(
@@ -113,13 +137,42 @@ export async function POST(request: Request) {
       .map(ingredient => ingredient.trim())
       .filter(ingredient => ingredient.length > 0);
 
-    // Add each ingredient individually
+    if (ingredients.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid ingredients found in the response' },
+        { status: 400 }
+      );
+    }
+
+    // Return the ingredients array
     return NextResponse.json({ ingredients });
   } catch (error) {
-    console.error('Error scanning ingredient:', error);
+    console.error('Error processing image:', error);
     return NextResponse.json(
-      { error: 'Failed to process image. Please try again.' },
+      { error: 'Failed to process image' },
       { status: 500 }
     );
   }
+}
+
+function formatIngredients(ingredients: string[]): string {
+  return ingredients
+    .map((ingredient: string) => `- ${ingredient}`)
+    .join('\n');
+}
+
+async function convertFileToBase64(file: File): Promise<string> {
+  const reader = new FileReader();
+  const base64ArrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+    reader.onload = (event) => {
+      const arrayBuffer = event.target?.result as ArrayBuffer;
+      resolve(arrayBuffer);
+    };
+    reader.onerror = (event) => {
+      reject(new Error('Error reading file'));
+    };
+    reader.readAsDataURL(file);
+  });
+  const base64 = Buffer.from(base64ArrayBuffer).toString('base64');
+  return base64;
 } 

@@ -13,7 +13,6 @@ import {
   ListItem, 
   ListItemText, 
   CircularProgress,
-  ListItemSecondaryAction,
   IconButton,
   TextField,
   Dialog,
@@ -36,11 +35,14 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/utils/supabase-client';
 import Navbar from '@/components/Navbar';
+import { useRouter } from 'next/navigation';
 
 interface ScannedIngredient {
   id: string;
   name: string;
   image: string;
+  quantity: number;
+  unit: string;
 }
 
 interface IngredientDialogState {
@@ -66,6 +68,7 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export default function ScanPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const dispatch = useDispatch();
   const { scannedIngredients, loading, error } = useSelector((state: RootState) => state.ingredients);
   const [useNativeCamera, setUseNativeCamera] = useState(false);
@@ -81,6 +84,11 @@ export default function ScanPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!user) {
+      router.push('/auth/login?redirect=/scan');
+      return;
+    }
+
     // Check if we should use native camera (Safari or iOS)
     const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
@@ -90,7 +98,7 @@ export default function ScanPage() {
       setUseNativeCamera(true);
       dispatch(setError(''));
     }
-  }, [dispatch]);
+  }, [user, router, dispatch]);
 
   const handleSaveIngredient = async () => {
     if (!dialogState.ingredient || !user) return;
@@ -101,7 +109,7 @@ export default function ScanPage() {
         .insert({
           user_id: user.id,
           name: dialogState.ingredient.name,
-          amount: parseFloat(dialogState.amount),
+          quantity: parseFloat(dialogState.amount),
           unit: dialogState.unit,
         })
         .select()
@@ -111,6 +119,11 @@ export default function ScanPage() {
 
       if (data) {
         dispatch(addUserIngredient(data));
+        // Remove the saved ingredient from scanned ingredients
+        const updatedIngredients = scannedIngredients.filter(
+          ing => ing.id !== dialogState.ingredient?.id
+        );
+        dispatch({ type: 'ingredients/setScannedIngredients', payload: updatedIngredients });
         setNotification({
           message: `${dialogState.ingredient.name} added to your ingredients!`,
           severity: 'success'
@@ -199,7 +212,6 @@ export default function ScanPage() {
     dispatch(setError(''));
     
     try {
-      // Process and compress the image
       const processedImage = await processImage(file);
       
       const response = await fetch('/api/scan-ingredient', {
@@ -216,11 +228,33 @@ export default function ScanPage() {
       const data = await response.json();
       if (data.ingredients && data.ingredients.length > 0) {
         data.ingredients.forEach((ingredient: string) => {
-          dispatch(addScannedIngredient({
-            id: Date.now().toString() + Math.random(),
-            name: ingredient,
-            image: processedImage,
-          }));
+          // Check if ingredient already exists
+          const existingIngredient = scannedIngredients.find(
+            (item) => item.name.toLowerCase() === ingredient.toLowerCase()
+          );
+
+          if (existingIngredient) {
+            // Update existing ingredient
+            const updatedIngredients = scannedIngredients.map((item) =>
+              item.id === existingIngredient.id
+                ? {
+                    ...item,
+                    quantity: (item.quantity || 1) + 1,
+                    unit: item.unit || 'piece',
+                  }
+                : item
+            );
+            dispatch({ type: 'ingredients/setScannedIngredients', payload: updatedIngredients });
+          } else {
+            // Add new ingredient
+            dispatch(addScannedIngredient({
+              id: Date.now().toString() + Math.random(),
+              name: ingredient,
+              image: processedImage,
+              quantity: 1,
+              unit: 'piece',
+            }));
+          }
         });
       } else {
         throw new Error('No ingredients detected');
@@ -232,12 +266,6 @@ export default function ScanPage() {
       dispatch(setLoading(false));
     }
   };
-
-  const handleWebcamRef = useCallback((node: Webcam | null) => {
-    if (node !== null) {
-      setIsCameraReady(true);
-    }
-  }, []);
 
   const captureImage = useCallback(async () => {
     if (useNativeCamera) {
@@ -267,11 +295,33 @@ export default function ScanPage() {
         const data = await response.json();
         if (data.ingredients && data.ingredients.length > 0) {
           data.ingredients.forEach((ingredient: string) => {
-            dispatch(addScannedIngredient({
-              id: Date.now().toString() + Math.random(),
-              name: ingredient,
-              image: imageSrc,
-            }));
+            // Check if ingredient already exists
+            const existingIngredient = scannedIngredients.find(
+              (item) => item.name.toLowerCase() === ingredient.toLowerCase()
+            );
+
+            if (existingIngredient) {
+              // Update existing ingredient
+              const updatedIngredients = scannedIngredients.map((item) =>
+                item.id === existingIngredient.id
+                  ? {
+                      ...item,
+                      quantity: (item.quantity || 1) + 1,
+                      unit: item.unit || 'piece',
+                    }
+                  : item
+              );
+              dispatch({ type: 'ingredients/setScannedIngredients', payload: updatedIngredients });
+            } else {
+              // Add new ingredient
+              dispatch(addScannedIngredient({
+                id: Date.now().toString() + Math.random(),
+                name: ingredient,
+                image: imageSrc,
+                quantity: 1,
+                unit: 'piece',
+              }));
+            }
           });
         } else {
           throw new Error('No ingredients detected');
@@ -283,7 +333,11 @@ export default function ScanPage() {
         dispatch(setLoading(false));
       }
     }
-  }, [dispatch, useNativeCamera]);
+  }, [dispatch, useNativeCamera, scannedIngredients]);
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <>
@@ -344,59 +398,168 @@ export default function ScanPage() {
           </Box>
 
           <Box sx={{ flex: 1, minWidth: 300 }}>
-            <Paper sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">Scanned Ingredients</Typography>
+            <Paper 
+              sx={{ 
+                p: { xs: 2, sm: 3 },
+                borderRadius: 2,
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  mb: 3,
+                  gap: 2
+                }}
+              >
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                    fontWeight: 600
+                  }}
+                >
+                  Scanned Ingredients
+                </Typography>
                 <Button
                   variant="outlined"
                   color="error"
+                  size="small"
                   startIcon={<Delete />}
                   onClick={() => dispatch(clearScannedIngredients())}
                   disabled={scannedIngredients.length === 0}
+                  sx={{
+                    borderRadius: 6,
+                    px: 2,
+                    '&.Mui-disabled': {
+                      opacity: 0.6
+                    }
+                  }}
                 >
                   Clear All
                 </Button>
               </Box>
 
               {loading && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                  <CircularProgress />
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    py: 4
+                  }}
+                >
+                  <CircularProgress size={32} />
                 </Box>
               )}
 
               {error && (
-                <Typography color="error" sx={{ mb: 2 }}>
+                <Alert 
+                  severity="error" 
+                  sx={{ 
+                    mb: 2,
+                    borderRadius: 1.5
+                  }}
+                >
                   {error}
-                </Typography>
+                </Alert>
               )}
 
-              <List>
-                {scannedIngredients.map((ingredient: ScannedIngredient) => (
-                  <ListItem key={ingredient.id}>
-                    <ListItemText primary={ingredient.name} />
-                    <ListItemSecondaryAction>
-                      <IconButton
-                        edge="end"
-                        aria-label="save"
-                        onClick={() => setDialogState({
-                          open: true,
-                          ingredient,
-                          amount: '1',
-                          unit: 'piece',
-                        })}
-                      >
-                        <Save />
-                      </IconButton>
-                    </ListItemSecondaryAction>
+              <List sx={{ width: '100%', flex: 1 }}>
+                {scannedIngredients.map((ingredient: ScannedIngredient, index) => (
+                  <ListItem
+                    key={ingredient.id}
+                    divider={index !== scannedIngredients.length - 1}
+                    sx={{
+                      px: { xs: 1, sm: 2 },
+                      py: 2,
+                      borderRadius: 1,
+                      '&:hover': {
+                        bgcolor: 'action.hover'
+                      }
+                    }}
+                  >
+                    <ListItemText
+                      primary={
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            fontWeight: 500,
+                            fontSize: { xs: '0.95rem', sm: '1rem' }
+                          }}
+                        >
+                          {ingredient.name}
+                        </Typography>
+                      }
+                      secondary={
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                        >
+                          {`${ingredient.quantity || 1} ${ingredient.unit || 'piece'}`}
+                        </Typography>
+                      }
+                    />
+                    <IconButton
+                      edge="end"
+                      aria-label="save"
+                      onClick={() => setDialogState({
+                        open: true,
+                        ingredient,
+                        amount: (ingredient.quantity || 1).toString(),
+                        unit: ingredient.unit || 'piece',
+                      })}
+                      sx={{
+                        color: 'primary.main',
+                        '&:hover': {
+                          bgcolor: 'primary.lighter',
+                        }
+                      }}
+                    >
+                      <Save />
+                    </IconButton>
                   </ListItem>
                 ))}
-                {scannedIngredients.length === 0 && (
-                  <ListItem>
-                    <ListItemText
-                      primary="No ingredients scanned"
-                      secondary="Use the camera to scan ingredients"
+                {scannedIngredients.length === 0 && !loading && !error && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      py: 6,
+                      px: 2,
+                      textAlign: 'center'
+                    }}
+                  >
+                    <PhotoCamera 
+                      sx={{ 
+                        fontSize: 48, 
+                        color: 'text.secondary',
+                        mb: 2
+                      }} 
                     />
-                  </ListItem>
+                    <Typography 
+                      variant="body1"
+                      sx={{
+                        color: 'text.secondary',
+                        fontWeight: 500,
+                        mb: 1
+                      }}
+                    >
+                      No ingredients scanned
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      Use the camera to scan ingredients
+                    </Typography>
+                  </Box>
                 )}
               </List>
             </Paper>
