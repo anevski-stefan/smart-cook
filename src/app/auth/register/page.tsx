@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Container, Paper, Typography, TextField, Button, Box, Alert } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
+import Navbar from '@/components/Navbar';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -55,69 +56,72 @@ export default function RegisterPage() {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper sx={{ p: 4 }} elevation={3}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Create Account
-        </Typography>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <TextField
-            label="Email"
-            type="email"
-            fullWidth
-            margin="normal"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <TextField
-            label="Password"
-            type="password"
-            fullWidth
-            margin="normal"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            helperText="Password must be at least 6 characters long"
-          />
-          <TextField
-            label="Confirm Password"
-            type="password"
-            fullWidth
-            margin="normal"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            fullWidth
-            size="large"
-            sx={{ mt: 3 }}
-            disabled={loading}
-          >
-            {loading ? 'Creating Account...' : 'Create Account'}
-          </Button>
-        </form>
-
-        <Box sx={{ mt: 3, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
-            Already have an account?{' '}
-            <Link href="/auth/login" style={{ color: 'inherit', textDecoration: 'underline' }}>
-              Sign in
-            </Link>
+    <>
+      <Navbar />
+      <Container maxWidth="sm" sx={{ mt: 4 }}>
+        <Paper sx={{ p: 4 }} elevation={3}>
+          <Typography variant="h4" component="h1" gutterBottom align="center">
+            Create Account
           </Typography>
-        </Box>
-      </Paper>
-    </Container>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <TextField
+              label="Email"
+              type="email"
+              fullWidth
+              margin="normal"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <TextField
+              label="Password"
+              type="password"
+              fullWidth
+              margin="normal"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              helperText="Password must be at least 6 characters long"
+            />
+            <TextField
+              label="Confirm Password"
+              type="password"
+              fullWidth
+              margin="normal"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              fullWidth
+              size="large"
+              sx={{ mt: 3 }}
+              disabled={loading}
+            >
+              {loading ? 'Creating Account...' : 'Create Account'}
+            </Button>
+          </form>
+
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              Already have an account?{' '}
+              <Link href="/auth/login" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                Sign in
+              </Link>
+            </Typography>
+          </Box>
+        </Paper>
+      </Container>
+    </>
   );
 } 
