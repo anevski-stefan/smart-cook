@@ -20,6 +20,7 @@ export default function RecipesPage() {
   const observer = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const shouldResetPageRef = useRef(false);
 
   const fetchRecipes = useCallback(async (pageNum: number, searchQuery: string) => {
     dispatch(setLoading(true));
@@ -73,16 +74,16 @@ export default function RecipesPage() {
       }
 
       searchTimeout.current = setTimeout(() => {
-        if (page === 1) {
-          fetchRecipes(1, searchTerm);
-        } else {
-          setPage(1); // This will trigger a new fetch through the page effect
+        fetchRecipes(1, searchTerm);
+        if (page !== 1) {
+          setPage(1);
         }
       }, DEBOUNCE_DELAY);
     };
 
-    if (page === 1) {
+    if (shouldResetPageRef.current) {
       handleSearch();
+      shouldResetPageRef.current = false;
     } else {
       fetchRecipes(page, searchTerm);
     }
@@ -94,12 +95,10 @@ export default function RecipesPage() {
     };
   }, [page, searchTerm, fetchRecipes]);
 
-  // Reset page when search term changes
+  // Update shouldResetPage when search term changes
   useEffect(() => {
-    if (page !== 1) {
-      setPage(1);
-    }
-  }, [searchTerm, page]);
+    shouldResetPageRef.current = true;
+  }, [searchTerm]);
 
   return (
     <>

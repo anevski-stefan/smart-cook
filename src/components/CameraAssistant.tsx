@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Box, Typography, Paper, Button, CircularProgress } from '@mui/material';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize Gemini
+// Initialize Gemini outside component to avoid re-creation
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
 
 interface CameraAssistantProps {
@@ -23,22 +23,35 @@ export default function CameraAssistant({ currentStep, ingredients }: CameraAssi
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [analysis, setAnalysis] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
 
+  // Setup camera once on mount
   useEffect(() => {
-    // Setup camera
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices
-        .getUserMedia({ video: true })
-        .then((stream) => {
+    const setupCamera = async () => {
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
           }
-        })
-        .catch((err) => console.error('Error accessing camera:', err));
-    }
-  }, []);
+          streamRef.current = stream;
+        }
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+      }
+    };
 
-  const captureAndAnalyze = async () => {
+    setupCamera();
+
+    // Cleanup function to stop camera stream
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []); // Empty dependency array as we only want to run this once
+
+  const captureAndAnalyze = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
     setIsAnalyzing(true);
@@ -66,7 +79,7 @@ export default function CameraAssistant({ currentStep, ingredients }: CameraAssi
         const base64data = reader.result as string;
 
         // Initialize Gemini Vision model
-        const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         // Create context-aware prompt
         const prompt = [
@@ -89,31 +102,41 @@ export default function CameraAssistant({ currentStep, ingredients }: CameraAssi
               data: base64data.split(',')[1]
             }
           }
-        ].filter(Boolean); // Remove empty strings
+        ].filter(Boolean);
 
-        // Analyze the image
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        setAnalysis(response.text());
+        try {
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          setAnalysis(response.text());
+        } catch (error) {
+          console.error('Error analyzing image with Gemini:', error);
+          setAnalysis('Error analyzing image with Gemini. Please try again.');
+        }
       };
     } catch (error) {
-      console.error('Error analyzing image:', error);
-      setAnalysis('Error analyzing image. Please try again.');
+      console.error('Error capturing image:', error);
+      setAnalysis('Error capturing image. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [currentStep, ingredients]); // Only depend on props that affect the analysis
 
   return (
     <Paper elevation={3} sx={{ p: 2, position: 'relative' }}>
-      <Typography variant="h6" gutterBottom>
-        Smart Cooking Assistant
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Smart Cooking Assistant
+        </Typography>
         {currentStep && (
-          <Typography variant="subtitle2" color="text.secondary">
+          <Typography 
+            variant="subtitle2" 
+            color="text.secondary"
+            component="div"
+          >
             Current Step: {currentStep.text}
           </Typography>
         )}
-      </Typography>
+      </Box>
       
       <Box sx={{ position: 'relative', width: '100%', height: '400px' }}>
         <video

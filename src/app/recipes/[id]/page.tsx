@@ -154,6 +154,7 @@ export default function RecipePage() {
                     <CookingAssistant 
                       instructions={currentRecipe.instructions}
                       ingredients={currentRecipe.ingredients}
+                      totalRecipeTime={currentRecipe.readyInMinutes}
                       onComplete={() => {
                         setNotification('Congratulations! You have completed the recipe!');
                       }}

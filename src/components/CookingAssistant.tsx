@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -15,7 +15,6 @@ import {
   Snackbar,
   LinearProgress,
   Chip,
-  Tooltip,
   Card,
   CardContent,
 } from '@mui/material';
@@ -23,21 +22,19 @@ import {
   PlayArrow,
   Pause,
   SkipNext,
-  Mic,
-  MicOff,
-  Timer,
   TipsAndUpdates,
   DeviceThermostat,
   Edit,
+  CheckCircle,
 } from '@mui/icons-material';
 import type { Instruction } from '@/types/ingredient';
-import type { SpeechRecognition, SpeechRecognitionEvent } from '@/types/speech';
 
 interface CookingAssistantProps {
   instructions: Instruction[];
   ingredients: Array<{ id: string; name: string; amount: number; unit: string }>;
   onComplete?: () => void;
   onStepChange?: (step: { id: number; text: string; description?: string }) => void;
+  totalRecipeTime?: number;
 }
 
 interface StepNote {
@@ -45,37 +42,105 @@ interface StepNote {
   note: string;
 }
 
-export default function CookingAssistant({ instructions, ingredients, onComplete, onStepChange }: CookingAssistantProps) {
+export default function CookingAssistant({ instructions, ingredients, onComplete, onStepChange, totalRecipeTime }: CookingAssistantProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const [isListening, setIsListening] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
-  const [showTimerDialog, setShowTimerDialog] = useState(false);
   const [showTempDialog, setShowTempDialog] = useState(false);
   const [stepNotes, setStepNotes] = useState<StepNote[]>([]);
   const [showNoteDialog, setShowNoteDialog] = useState(false);
   const [currentNote, setCurrentNote] = useState('');
   const [totalTimeRemaining, setTotalTimeRemaining] = useState<number>(0);
-  
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const synthesisRef = useRef<SpeechSynthesis | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [stepElapsedTime, setStepElapsedTime] = useState(0);
+  const [stepTimeRemaining, setStepTimeRemaining] = useState<number | null>(null);
+  const [customTemp, setCustomTemp] = useState<string>('');
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
-  // Calculate total time and progress
+  // Calculate progress using useMemo instead of state and effect
+  const progress = useMemo(() => {
+    if (totalTimeRemaining === 0) return 0;
+    
+    const completedTime = instructions
+      .slice(0, currentStep)
+      .reduce((acc, instruction) => acc + (instruction.duration || 0), 0);
+    
+    // Add partial progress from current step
+    const currentStepProgress = isPlaying ? stepElapsedTime / 60 : 0;
+    const totalProgress = completedTime + currentStepProgress;
+    
+    return Math.min(Math.round((totalProgress / totalTimeRemaining) * 100), 100);
+  }, [currentStep, totalTimeRemaining, instructions, stepElapsedTime, isPlaying]);
+
+  // Calculate total time only when instructions change
   useEffect(() => {
-    const total = instructions.reduce((acc, instruction) => {
-      return acc + (instruction.duration || 0);
-    }, 0);
+    const total = instructions.reduce((acc, instruction) => 
+      acc + (instruction.duration || 0), 0);
     setTotalTimeRemaining(total);
   }, [instructions]);
 
-  const speakCurrentStep = useCallback(() => {
-    if (!synthesisRef.current) return;
+  // Track elapsed time for current step
+  useEffect(() => {
+    if (!isPlaying) {
+      return;
+    }
 
-    const utterance = new SpeechSynthesisUtterance(instructions[currentStep].text);
-    synthesisRef.current.speak(utterance);
-  }, [instructions, currentStep]);
+    const intervalId = setInterval(() => {
+      setStepElapsedTime(prev => prev + 1);
+    }, 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isPlaying]);
+
+  // Reset elapsed time when step changes
+  useEffect(() => {
+    setStepElapsedTime(0);
+  }, [currentStep]);
+
+  // Handle auto-advance with cleanup
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const currentInstruction = instructions[currentStep];
+    const stepDuration = currentInstruction?.duration || 0;
+
+    if (stepDuration === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      if (currentStep < instructions.length - 1) {
+        setCurrentStep(prev => prev + 1);
+        setIsPlaying(false); // Stop playing after advancing
+      } else {
+        setIsPlaying(false);
+        onComplete?.();
+      }
+    }, stepDuration * 60 * 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [isPlaying, currentStep, instructions, onComplete]);
+
+  // Notify step change - debounced to prevent rapid updates
+  useEffect(() => {
+    if (!onStepChange) return;
+
+    const notifyChange = () => {
+      if (currentStep >= 0 && currentStep < instructions.length) {
+        const step = instructions[currentStep];
+        onStepChange({
+          id: currentStep,
+          text: step.text,
+          description: step.description
+        });
+      }
+    };
+
+    // Add a small delay to prevent rapid successive updates
+    const timeoutId = setTimeout(notifyChange, 100);
+    return () => clearTimeout(timeoutId);
+  }, [currentStep, instructions, onStepChange]);
 
   const checkIngredients = useCallback((stepIndex: number) => {
     const stepText = instructions[stepIndex].text.toLowerCase();
@@ -92,123 +157,27 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
 
   const handleNextStep = useCallback(() => {
     if (currentStep < instructions.length - 1) {
-      setCurrentStep(currentStep + 1);
-      speakCurrentStep();
+      setCurrentStep(prev => prev + 1);
       checkIngredients(currentStep + 1);
     } else {
+      setIsPlaying(false);
       onComplete?.();
     }
-  }, [currentStep, instructions.length, speakCurrentStep, checkIngredients, onComplete]);
+  }, [currentStep, instructions.length, checkIngredients, onComplete]);
 
   const handlePreviousStep = useCallback(() => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-      speakCurrentStep();
+      setCurrentStep(prev => prev - 1);
       checkIngredients(currentStep - 1);
     }
-  }, [currentStep, speakCurrentStep, checkIngredients]);
+  }, [currentStep, checkIngredients]);
 
-  const handleVoiceCommand = useCallback((command: string) => {
-    if (command.includes('next') || command.includes('next step')) {
-      handleNextStep();
-    } else if (command.includes('previous') || command.includes('back')) {
-      handlePreviousStep();
-    } else if (command.includes('start timer') || command.includes('set timer')) {
-      setShowTimerDialog(true);
-    } else if (command.includes('pause') || command.includes('stop')) {
-      setIsPlaying(false);
-    } else if (command.includes('resume') || command.includes('continue')) {
-      setIsPlaying(true);
-    } else if (command.includes('repeat') || command.includes('what')) {
-      speakCurrentStep();
-    } else if (command.includes('convert temperature')) {
-      setShowTempDialog(true);
-    } else if (command.includes('add note')) {
-      setShowNoteDialog(true);
-    }
-  }, [handleNextStep, handlePreviousStep, speakCurrentStep, setIsPlaying, setShowTimerDialog, setShowTempDialog, setShowNoteDialog]);
-
-  // Initialize speech recognition and synthesis
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Initialize speech recognition
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = false;
-
-        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-          const command = event.results[event.results.length - 1][0].transcript.toLowerCase();
-          handleVoiceCommand(command);
-        };
-
-        recognitionRef.current.onerror = (event: SpeechRecognitionEvent) => {
-          console.error('Speech recognition error:', event.error);
-          setIsListening(false);
-        };
-      }
-
-      // Initialize speech synthesis
-      if (window.speechSynthesis) {
-        synthesisRef.current = window.speechSynthesis;
-      }
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      if (synthesisRef.current) {
-        synthesisRef.current.cancel();
-      }
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [handleVoiceCommand]);
-
-  const toggleVoiceRecognition = () => {
-    if (!recognitionRef.current) {
-      setNotification('Speech recognition is not supported in your browser');
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      recognitionRef.current.start();
-    }
-    setIsListening(!isListening);
-  };
-
-  const startTimer = (minutes: number) => {
-    const seconds = minutes * 60;
-    setTimeRemaining(seconds);
-    
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-
-    timerRef.current = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev === null || prev <= 0) {
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-          }
-          setNotification('Timer completed! Time to move to the next step.');
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+  const formatTime = useCallback((seconds: number): string => {
+    if (seconds <= 0) return "0:00";
+    const mins = Math.floor(Math.max(0, seconds) / 60);
+    const secs = Math.max(0, seconds) % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
   const convertTemperature = (value: number, fromUnit: 'F' | 'C'): number => {
     if (fromUnit === 'F') {
@@ -225,25 +194,79 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
     setNotification('Note added successfully');
   };
 
-  const calculateProgress = (): number => {
-    if (totalTimeRemaining === 0) return 0;
+  // Track remaining time for current step
+  useEffect(() => {
+    if (!isPlaying) {
+      setStepTimeRemaining(null);
+      return;
+    }
+
+    const currentInstruction = instructions[currentStep];
+    const stepDuration = currentInstruction?.duration || 0;
     
-    const completedTime = instructions
-      .slice(0, currentStep)
-      .reduce((acc, instruction) => acc + (instruction.duration || 0), 0);
-    return Math.min((completedTime / totalTimeRemaining) * 100, 100);
+    if (stepDuration === 0) {
+      setStepTimeRemaining(null);
+      return;
+    }
+
+    const remainingTime = stepDuration * 60 - stepElapsedTime;
+    if (remainingTime <= 0) {
+      if (currentStep < instructions.length - 1) {
+        setCurrentStep(prev => prev + 1);
+        setStepElapsedTime(0);
+      } else {
+        setIsPlaying(false);
+        onComplete?.();
+      }
+      return;
+    }
+
+    setStepTimeRemaining(remainingTime);
+
+    const intervalId = setInterval(() => {
+      setStepTimeRemaining(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(intervalId);
+          if (currentStep < instructions.length - 1) {
+            setCurrentStep(prev => prev + 1);
+            setStepElapsedTime(0);
+          } else {
+            setIsPlaying(false);
+            onComplete?.();
+          }
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [isPlaying, currentStep, instructions, stepElapsedTime, onComplete]);
+
+  const handleCustomTempChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow only numbers and empty string
+    if (value === '' || /^\d+$/.test(value)) {
+      setCustomTemp(value);
+    }
   };
 
-  useEffect(() => {
-    if (currentStep >= 0 && currentStep < instructions.length && onStepChange) {
-      const step = instructions[currentStep];
-      onStepChange({
-        id: currentStep,
-        text: step.text,
-        description: step.description
-      });
-    }
-  }, [currentStep, instructions, onStepChange]);
+  const toggleStepCompletion = (stepIndex: number) => {
+    setCompletedSteps(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(stepIndex)) {
+        newSet.delete(stepIndex);
+      } else {
+        newSet.add(stepIndex);
+        // Move to next step when marking as complete
+        if (stepIndex === currentStep && stepIndex < instructions.length - 1) {
+          setCurrentStep(stepIndex + 1);
+          checkIngredients(stepIndex + 1);
+        }
+      }
+      return newSet;
+    });
+  };
 
   return (
     <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
@@ -254,34 +277,20 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
       <Box sx={{ mb: 2 }}>
         <LinearProgress 
           variant="determinate" 
-          value={calculateProgress()} 
+          value={progress} 
           sx={{ height: 8, borderRadius: 4 }}
         />
         <Typography variant="body2" color="text.secondary" align="right" sx={{ mt: 1 }}>
-          Progress: {Math.round(calculateProgress())}%
+          Progress: {progress}%
         </Typography>
       </Box>
 
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
         <IconButton
-          onClick={() => setIsPlaying(!isPlaying)}
+          onClick={() => setIsPlaying(prev => !prev)}
           color="primary"
         >
           {isPlaying ? <Pause /> : <PlayArrow />}
-        </IconButton>
-
-        <IconButton
-          onClick={toggleVoiceRecognition}
-          color={isListening ? 'error' : 'primary'}
-        >
-          {isListening ? <MicOff /> : <Mic />}
-        </IconButton>
-
-        <IconButton
-          onClick={() => setShowTimerDialog(true)}
-          color="primary"
-        >
-          <Timer />
         </IconButton>
 
         <IconButton
@@ -298,20 +307,21 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
           <Edit />
         </IconButton>
 
-        {timeRemaining !== null && (
-          <Chip 
-            label={`Timer: ${formatTime(timeRemaining)}`}
-            color="primary"
-            variant="outlined"
-          />
-        )}
-
         {totalTimeRemaining > 0 && (
-          <Chip
-            label={`Est. Time: ${formatTime(totalTimeRemaining * 60)}`}
-            color="secondary"
-            variant="outlined"
-          />
+          <>
+            <Chip
+              label={`Active Time: ${formatTime(totalTimeRemaining * 60)}`}
+              color="secondary"
+              variant="outlined"
+            />
+            {totalRecipeTime && totalRecipeTime !== totalTimeRemaining && (
+              <Chip
+                label={`Total Time: ${totalRecipeTime} min`}
+                color="default"
+                variant="outlined"
+              />
+            )}
+          </>
         )}
       </Box>
 
@@ -329,22 +339,34 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
               }}
             >
               <Box sx={{ width: '100%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <Typography variant="subtitle1">
-                    Step {index + 1}
-                  </Typography>
-                  {instruction.duration && (
-                    <Chip 
-                      size="small" 
-                      label={`${instruction.duration} min`}
-                      color="primary"
-                      variant="outlined"
-                    />
-                  )}
-                  {instruction.timerRequired && (
-                    <Tooltip title="Timer recommended for this step">
-                      <Timer fontSize="small" color="action" />
-                    </Tooltip>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="subtitle1">
+                      Step {index + 1}
+                    </Typography>
+                    {instruction.duration && (
+                      <Chip 
+                        size="small" 
+                        label={currentStep === index && stepTimeRemaining !== null ? 
+                          `${formatTime(stepTimeRemaining)} left` :
+                          `${instruction.duration} min`}
+                        color={currentStep === index && isPlaying ? "primary" : "default"}
+                        variant="outlined"
+                      />
+                    )}
+                  </Box>
+                  {!instruction.duration && (
+                    <IconButton
+                      onClick={() => toggleStepCompletion(index)}
+                      size="small"
+                      color="success"
+                    >
+                      <CheckCircle 
+                        sx={{ 
+                          opacity: completedSteps.has(index) ? 1 : 0.3 
+                        }} 
+                      />
+                    </IconButton>
                   )}
                 </Box>
 
@@ -405,35 +427,31 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
         </Button>
       </Box>
 
-      {/* Timer Dialog */}
-      <Dialog open={showTimerDialog} onClose={() => setShowTimerDialog(false)}>
-        <DialogTitle>Set Timer</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
-            {[1, 3, 5, 10, 15, 30].map((minutes) => (
-              <Button
-                key={minutes}
-                variant="outlined"
-                onClick={() => {
-                  startTimer(minutes);
-                  setShowTimerDialog(false);
-                }}
-              >
-                {minutes}m
-              </Button>
-            ))}
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowTimerDialog(false)}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Temperature Conversion Dialog */}
       <Dialog open={showTempDialog} onClose={() => setShowTempDialog(false)}>
         <DialogTitle>Temperature Conversion</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <input
+                type="text"
+                value={customTemp}
+                onChange={handleCustomTempChange}
+                placeholder="Enter °F"
+                style={{
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  width: '100px'
+                }}
+              />
+              {customTemp && (
+                <Typography>
+                  {customTemp}°F = {convertTemperature(parseInt(customTemp), 'F')}°C
+                </Typography>
+              )}
+            </Box>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Common Temperatures:</Typography>
             {[350, 375, 400, 425, 450].map((temp) => (
               <Box key={temp} sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography>{temp}°F = {convertTemperature(temp, 'F')}°C</Typography>
@@ -442,7 +460,10 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowTempDialog(false)}>Close</Button>
+          <Button onClick={() => {
+            setCustomTemp('');
+            setShowTempDialog(false);
+          }}>Close</Button>
         </DialogActions>
       </Dialog>
 
