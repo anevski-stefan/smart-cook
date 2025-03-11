@@ -70,35 +70,55 @@ export default function RecipePage() {
   return (
     <>
       <Navbar />
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Container 
+        maxWidth={false} 
+        sx={{ 
+          mt: 4,
+          maxWidth: '1400px !important'
+        }}
+      >
         {loading ? (
-          <Box display="flex" justifyContent="center" my={4}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
             <CircularProgress />
           </Box>
         ) : error ? (
-          <Alert severity="error" sx={{ mt: 2 }}>
+          <Alert severity="error" sx={{ mt: 4 }}>
             {error}
           </Alert>
         ) : currentRecipe ? (
           <Grid container spacing={3}>
             <Grid item xs={12}>
-              <Paper elevation={2} sx={{ p: 3, position: 'relative' }}>
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: 16,
-                    right: 16,
-                    display: 'flex',
-                    gap: 1,
-                  }}
-                >
-                  <SaveRecipeButton recipeId={currentRecipe.id} />
-                  <AddToShoppingList ingredients={currentRecipe.ingredients} />
+              <Paper sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Typography variant="h4" component="h1">
+                    {currentRecipe.title}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <SaveRecipeButton recipeId={currentRecipe.id} />
+                    <AddToShoppingList ingredients={currentRecipe.ingredients} />
+                  </Box>
                 </Box>
 
-                <Typography variant="h4" component="h1" gutterBottom>
-                  {currentRecipe.title}
+                <Typography variant="body1" paragraph mb={2}>
+                  {currentRecipe.description.split('Tags:')[0].trim()}
                 </Typography>
+
+                {currentRecipe.description.includes('Tags:') && (
+                  <Box display="flex" gap={1} flexWrap="wrap" mb={3}>
+                    {currentRecipe.description
+                      .split('Tags:')[1]
+                      .split(',')
+                      .map((tag) => (
+                        <Chip
+                          key={tag}
+                          label={tag.trim()}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      ))}
+                  </Box>
+                )}
 
                 <Grid container spacing={3}>
                   <Grid item xs={12} md={6}>
@@ -116,10 +136,6 @@ export default function RecipePage() {
                   </Grid>
 
                   <Grid item xs={12} md={6}>
-                    <Typography variant="body1" paragraph>
-                      {currentRecipe.description}
-                    </Typography>
-
                     <Box display="flex" gap={2} flexWrap="wrap" mb={3}>
                       <Chip
                         icon={<AccessTimeIcon />}

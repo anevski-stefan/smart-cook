@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Box, Typography, Paper, Button, CircularProgress } from '@mui/material';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { PhotoCamera } from '@mui/icons-material';
 
 // Initialize Gemini outside component to avoid re-creation
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
@@ -24,32 +25,66 @@ export default function CameraAssistant({ currentStep, ingredients }: CameraAssi
   const [analysis, setAnalysis] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
 
-  // Setup camera once on mount
-  useEffect(() => {
-    const setupCamera = async () => {
-      try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
+  const setupCamera = async () => {
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const constraints = {
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
           streamRef.current = stream;
+          
+          // Set camera active first to ensure UI updates
+          setIsCameraActive(true);
+          
+          // Wait for video to be ready
+          await new Promise((resolve) => {
+            if (videoRef.current) {
+              videoRef.current.onloadedmetadata = () => {
+                videoRef.current!.play().then(() => resolve(true));
+              };
+            }
+          });
         }
-      } catch (err) {
-        console.error('Error accessing camera:', err);
+      } else {
+        console.error('Media devices not supported');
+        setAnalysis('Error: Camera not supported on this device or browser.');
+        setIsCameraActive(false);
       }
-    };
+    } catch (err) {
+      console.error('Error accessing camera:', err);
+      setAnalysis('Error: Could not access camera. Please check camera permissions and try again.');
+      setIsCameraActive(false);
+    }
+  };
 
-    setupCamera();
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+      setIsCameraActive(false);
+    }
+  };
 
-    // Cleanup function to stop camera stream
+  // Cleanup function when component unmounts
+  useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
+      stopCamera();
     };
-  }, []); // Empty dependency array as we only want to run this once
+  }, []);
 
   const captureAndAnalyze = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -119,7 +154,7 @@ export default function CameraAssistant({ currentStep, ingredients }: CameraAssi
     } finally {
       setIsAnalyzing(false);
     }
-  }, [currentStep, ingredients]); // Only depend on props that affect the analysis
+  }, [currentStep, ingredients]);
 
   return (
     <Paper elevation={3} sx={{ p: 2, position: 'relative' }}>
@@ -138,14 +173,44 @@ export default function CameraAssistant({ currentStep, ingredients }: CameraAssi
         )}
       </Box>
       
-      <Box sx={{ position: 'relative', width: '100%', height: '400px' }}>
+      <Box sx={{ position: 'relative', width: '100%', height: '400px', backgroundColor: '#000' }}>
+        {!isCameraActive ? (
+          <Box 
+            sx={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex', 
+              flexDirection: 'column',
+              alignItems: 'center', 
+              justifyContent: 'center',
+              border: '2px dashed #ccc',
+              borderRadius: 2,
+              bgcolor: '#f5f5f5',
+              zIndex: 1
+            }}
+          >
+            <Typography color="textSecondary" sx={{ mb: 2 }}>
+              Camera is currently inactive
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<PhotoCamera />}
+              onClick={setupCamera}
+            >
+              Start Camera
+            </Button>
+          </Box>
+        ) : null}
+        
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
           style={{
-            position: 'absolute',
             width: '100%',
             height: '100%',
             objectFit: 'cover',
@@ -154,31 +219,42 @@ export default function CameraAssistant({ currentStep, ingredients }: CameraAssi
         <canvas
           ref={canvasRef}
           style={{
-            display: 'none', // Hide canvas, we only use it for capturing
+            display: 'none',
           }}
         />
       </Box>
 
       <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Button 
-          variant="contained" 
-          onClick={captureAndAnalyze}
-          disabled={isAnalyzing}
-          sx={{ position: 'relative' }}
-        >
-          {isAnalyzing ? (
-            <>
-              Analyzing...
-              <CircularProgress 
-                size={24} 
-                sx={{ 
-                  position: 'absolute',
-                  right: 10
-                }} 
-              />
-            </>
-          ) : 'Analyze Current Step'}
-        </Button>
+        {isCameraActive && (
+          <>
+            <Button 
+              variant="contained" 
+              onClick={captureAndAnalyze}
+              disabled={isAnalyzing}
+              sx={{ position: 'relative' }}
+            >
+              {isAnalyzing ? (
+                <>
+                  Analyzing...
+                  <CircularProgress 
+                    size={24} 
+                    sx={{ 
+                      position: 'absolute',
+                      right: 10
+                    }} 
+                  />
+                </>
+              ) : 'Analyze Current Step'}
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={stopCamera}
+            >
+              Stop Camera
+            </Button>
+          </>
+        )}
 
         {analysis && (
           <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>

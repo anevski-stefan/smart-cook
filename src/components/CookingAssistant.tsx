@@ -360,10 +360,18 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
                       onClick={() => toggleStepCompletion(index)}
                       size="small"
                       color="success"
+                      sx={{
+                        '&:hover': {
+                          '& .MuiSvgIcon-root': {
+                            opacity: 0.7
+                          }
+                        }
+                      }}
                     >
                       <CheckCircle 
                         sx={{ 
-                          opacity: completedSteps.has(index) ? 1 : 0.3 
+                          opacity: completedSteps.has(index) ? 1 : 0.3,
+                          transition: 'opacity 0.2s'
                         }} 
                       />
                     </IconButton>
