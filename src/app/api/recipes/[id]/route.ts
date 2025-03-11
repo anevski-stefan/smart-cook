@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { Recipe } from '@/types/ingredient';
+
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
+const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
 interface MealDBRecipe {
   idMeal: string;
@@ -151,14 +155,53 @@ function extractIngredientsFromMealDB(meal: MealDBRecipe) {
   return ingredients;
 }
 
+async function generateStepDescriptions(steps: string[], ingredients: Array<{ name: string; amount: number; unit: string }>): Promise<string[]> {
+  try {
+    const prompt = `For each cooking step, provide a clear explanation focusing on technique and ingredient usage.
+
+Available ingredients:
+${ingredients.map(ing => `- ${ing.amount} ${ing.unit} ${ing.name}`).join('\n')}
+
+For each step:
+1. Identify the main technique or action
+2. Note which ingredients from the list are being used
+3. Explain what this step achieves in the recipe
+4. If the step mentions an ingredient with a different name (e.g., "biscuits" instead of "cookies"), clarify which ingredient from the list should be used
+
+Steps:
+${steps.join('\n')}
+
+For each step, provide ONE LINE containing:
+1. A clear explanation of what the step achieves
+2. "(Technique: [main technique])"
+3. If needed, "(Using: [correct ingredient name from list])"
+
+Example:
+Step: "Crush the biscuits and mix with melted butter"
+Response: "Creates a firm cookie base for the dessert. (Technique: Crushing and mixing) (Using: Peanut Cookies with Butter)"`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Clean up and format descriptions
+    return text.split('\n')
+      .filter((line: string) => line.trim())
+      .map((line: string) => line.trim())
+      .map((line: string) => line.replace(/^["']|["']$/g, ''));
+  } catch (error) {
+    console.error('Error generating step descriptions:', error);
+    return steps.map(() => '');
+  }
+}
+
 function extractInstructionsFromMealDB(instructions: string) {
-  return instructions
+  const steps = instructions
     .split(/\r\n|\n|\r/)
     .filter(step => step.trim().length > 0)
-    .map((step, index) => ({
-      number: index + 1,
-      step: step.trim()
-    }));
+    .map(step => step.trim());
+
+  return steps;
 }
 
 export async function GET(
@@ -190,6 +233,10 @@ export async function GET(
       .filter((name): name is string => !!name);
     const nutritionalInfo = estimateNutritionalInfo(ingredientNames);
 
+    // Extract steps and generate descriptions with ingredient validation
+    const steps = extractInstructionsFromMealDB(meal.strInstructions);
+    const descriptions = await generateStepDescriptions(steps, ingredients);
+
     const recipe: Recipe = {
       id: meal.idMeal,
       title: meal.strMeal,
@@ -202,7 +249,13 @@ export async function GET(
       summary: `${meal.strCategory} dish from ${meal.strArea} cuisine`,
       nutritionalInfo,
       ingredients,
-      instructions: extractInstructionsFromMealDB(meal.strInstructions),
+      instructions: steps.map((step, index) => ({
+        id: `${meal.idMeal}-step-${index + 1}`,
+        text: step,
+        description: descriptions[index] || undefined,
+        duration: estimateStepDuration(step),
+        timerRequired: stepRequiresTimer(step)
+      })),
     };
 
     return NextResponse.json(recipe);
@@ -213,4 +266,38 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+
+// Helper function to estimate step duration
+function estimateStepDuration(step: string): number | undefined {
+  const text = step.toLowerCase();
+  if (text.includes('minute') || text.includes('min')) {
+    const match = text.match(/(\d+)[\s-]*(minute|min)/);
+    if (match) return parseInt(match[1]);
+  }
+  if (text.includes('hour')) {
+    const match = text.match(/(\d+)[\s-]*hour/);
+    if (match) return parseInt(match[1]) * 60;
+  }
+  // Estimate based on common cooking actions
+  if (text.includes('boil') || text.includes('simmer')) return 15;
+  if (text.includes('bake') || text.includes('roast')) return 30;
+  if (text.includes('fry') || text.includes('sauté')) return 10;
+  if (text.includes('rest') || text.includes('cool')) return 10;
+  return undefined;
+}
+
+// Helper function to determine if a step needs a timer
+function stepRequiresTimer(step: string): boolean {
+  const text = step.toLowerCase();
+  return text.includes('minute') || 
+         text.includes('min') || 
+         text.includes('hour') ||
+         text.includes('until') ||
+         text.includes('boil') ||
+         text.includes('simmer') ||
+         text.includes('bake') ||
+         text.includes('roast') ||
+         text.includes('rest') ||
+         text.includes('cool');
 } 

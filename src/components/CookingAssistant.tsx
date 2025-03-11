@@ -343,6 +343,22 @@ export default function CookingAssistant({ instructions, ingredients, onComplete
                   {instruction.text}
                 </Typography>
 
+                {instruction.description && (
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary"
+                    sx={{ 
+                      mb: 1,
+                      pl: 2,
+                      borderLeft: '2px solid',
+                      borderColor: 'primary.main',
+                      fontStyle: 'italic'
+                    }}
+                  >
+                    {instruction.description}
+                  </Typography>
+                )}
+
                 {stepNote && (
                   <Card variant="outlined" sx={{ mt: 1, bgcolor: 'action.hover' }}>
                     <CardContent>

@@ -6,6 +6,7 @@ import {
   CircularProgress,
   useTheme,
 } from '@mui/material';
+import { useEffect, useState } from 'react';
 import type { NutritionalInfo as NutritionalInfoType } from '@/types/ingredient';
 
 interface NutritionalInfoProps {
@@ -14,6 +15,16 @@ interface NutritionalInfoProps {
 
 export default function NutritionalInfo({ nutritionalInfo }: NutritionalInfoProps) {
   const theme = useTheme();
+  const [animated, setAnimated] = useState(false);
+
+  useEffect(() => {
+    // Start animation after component mounts
+    const timer = setTimeout(() => {
+      setAnimated(true);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const nutrients = [
     {
@@ -70,13 +81,18 @@ export default function NutritionalInfo({ nutritionalInfo }: NutritionalInfoProp
                 />
                 <CircularProgress
                   variant="determinate"
-                  value={75}
+                  value={animated ? 75 : 0}
                   size={80}
                   thickness={4}
                   sx={{
                     color: nutrient.color,
                     position: 'absolute',
                     left: 0,
+                    transition: 'all 1s ease-out',
+                    transform: 'rotate(-90deg)',
+                    'circle': {
+                      strokeLinecap: 'round',
+                    }
                   }}
                 />
                 <Box
@@ -89,6 +105,9 @@ export default function NutritionalInfo({ nutritionalInfo }: NutritionalInfoProp
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    opacity: animated ? 1 : 0,
+                    transition: 'opacity 0.5s ease-in',
+                    transitionDelay: '0.5s'
                   }}
                 >
                   <Typography variant="body2" component="div" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

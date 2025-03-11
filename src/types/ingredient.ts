@@ -8,6 +8,7 @@ export interface Ingredient {
 export interface Instruction {
   id: string;
   text: string;
+  description?: string; // Short explanation of what this step achieves
   duration?: number; // Optional duration in minutes
   timerRequired?: boolean;
 }
