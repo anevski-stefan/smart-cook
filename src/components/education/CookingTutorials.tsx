@@ -12,8 +12,11 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  TextField,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
-import { PlayArrow } from '@mui/icons-material';
+import { PlayArrow, Search } from '@mui/icons-material';
 
 interface Tutorial {
   id: string;
@@ -23,6 +26,21 @@ interface Tutorial {
   videoId: string;
   category: string;
   duration: string;
+  url: string;
+}
+
+interface YouTubeSearchResult {
+  id: { videoId: string };
+  snippet: {
+    title: string;
+    description: string;
+    thumbnails: {
+      medium: { url: string }
+    };
+  };
+  contentDetails?: {
+    duration: string;
+  };
 }
 
 const tutorials: Tutorial[] = [
@@ -33,7 +51,8 @@ const tutorials: Tutorial[] = [
     thumbnail: 'https://i.ytimg.com/vi/-av6cz9upO0/hqdefault.jpg',
     videoId: '-av6cz9upO0',
     category: 'Basic Skills',
-    duration: '6:12'
+    duration: '6:12',
+    url: 'https://www.youtube.com/watch?v=-av6cz9upO0'
   },
   {
     id: '2',
@@ -42,7 +61,8 @@ const tutorials: Tutorial[] = [
     thumbnail: 'https://i.ytimg.com/vi/Jf75I9LKhvg/hqdefault.jpg',
     videoId: 'Jf75I9LKhvg',
     category: 'Basic Skills',
-    duration: '5:15'
+    duration: '5:15',
+    url: 'https://www.youtube.com/watch?v=Jf75I9LKhvg'
   },
   {
     id: '3',
@@ -51,7 +71,8 @@ const tutorials: Tutorial[] = [
     thumbnail: 'https://i.ytimg.com/vi/V23HlsUdbaM/hqdefault.jpg',
     videoId: 'V23HlsUdbaM',
     category: 'Advanced Techniques',
-    duration: '8:47'
+    duration: '8:47',
+    url: 'https://www.youtube.com/watch?v=V23HlsUdbaM'
   },
   {
     id: '4',
@@ -60,7 +81,8 @@ const tutorials: Tutorial[] = [
     thumbnail: 'https://i.ytimg.com/vi/13Ah9ES2yTU/hqdefault.jpg',
     videoId: '13Ah9ES2yTU',
     category: 'Baking',
-    duration: '8:16'
+    duration: '8:16',
+    url: 'https://www.youtube.com/watch?v=13Ah9ES2yTU'
   },
   {
     id: '5',
@@ -69,13 +91,18 @@ const tutorials: Tutorial[] = [
     thumbnail: 'https://i.ytimg.com/vi/JMA2SqaDgG8/hqdefault.jpg',
     videoId: 'JMA2SqaDgG8',
     category: 'Basic Skills',
-    duration: '9:27'
+    duration: '9:27',
+    url: 'https://www.youtube.com/watch?v=JMA2SqaDgG8'
   }
 ];
 
 export default function CookingTutorials() {
   const [selectedVideo, setSelectedVideo] = useState<Tutorial | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Tutorial[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
   const handleVideoClick = (tutorial: Tutorial) => {
     setSelectedVideo(tutorial);
@@ -86,14 +113,132 @@ export default function CookingTutorials() {
     setIsDialogOpen(false);
   };
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true);
+    setSearchError('');
+    
+    try {
+      const response = await fetch(`/api/youtube-search?q=${encodeURIComponent(searchQuery + ' cooking tutorial')}`);
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+      
+      const data = await response.json();
+      const formattedResults: Tutorial[] = data.items.map((item: YouTubeSearchResult) => ({
+        id: item.id.videoId,
+        title: item.snippet.title,
+        description: item.snippet.description,
+        thumbnail: item.snippet.thumbnails.medium.url,
+        videoId: item.id.videoId,
+        category: 'Search Results',
+        duration: item.contentDetails?.duration || '',
+        url: `https://www.youtube.com/watch?v=${item.id.videoId}`
+      }));
+      
+      setSearchResults(formattedResults);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchError('Failed to fetch search results. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
   const categories = Array.from(new Set(tutorials.map(tutorial => tutorial.category)));
 
   return (
-    <Box>
-      <Typography variant="h5" sx={{ mb: 5 }}>
+    <Box sx={{ px: 3 }}>
+      <Typography variant="h4" sx={{ mb: 5 }}>
         Video Tutorials
       </Typography>
 
+      <Box sx={{ mb: 4 }}>
+        <TextField
+          fullWidth
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="Search for cooking tutorials..."
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton onClick={handleSearch} disabled={isSearching}>
+                  <Search />
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+          disabled={isSearching}
+        />
+        {searchError && (
+          <Typography color="error" sx={{ mt: 1 }}>
+            {searchError}
+          </Typography>
+        )}
+      </Box>
+
+      {searchResults.length > 0 ? (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" sx={{ mb: 3 }}>
+            Search Results
+          </Typography>
+          <Grid container spacing={3}>
+            {searchResults.map((tutorial) => (
+              <Grid item xs={12} sm={6} md={4} key={tutorial.id}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <CardMedia
+                    component="img"
+                    height="180"
+                    image={tutorial.thumbnail}
+                    alt={tutorial.title}
+                    sx={{ objectFit: 'cover' }}
+                  />
+                  <CardContent sx={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1.5,
+                    p: '16px !important',
+                    '&:last-child': { p: '16px !important' }
+                  }}>
+                    <Typography variant="h6" component="h3" sx={{ mb: 1 }}>
+                      {tutorial.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {tutorial.description}
+                    </Typography>
+                    <Box sx={{ mt: 'auto' }}>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        fullWidth
+                        startIcon={<PlayArrow />}
+                        onClick={() => handleVideoClick(tutorial)}
+                        size="small"
+                      >
+                        Watch Tutorial
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      ) : null}
+
+      <Typography variant="h6" gutterBottom sx={{ mt: 4, mb: 3 }}>
+        Curated Tutorials
+      </Typography>
+      
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* First render multi-video categories */}
         {categories
@@ -101,7 +246,7 @@ export default function CookingTutorials() {
           .map(category => {
             const categoryVideos = tutorials.filter(tutorial => tutorial.category === category);
             return (
-              <Box key={category} sx={{ width: '100%' }}>
+              <Grid item xs={12} key={category}>
                 <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                   {category}
                 </Typography>
@@ -129,23 +274,26 @@ export default function CookingTutorials() {
                         <Box
                           sx={{
                             position: 'absolute',
-                            bottom: 188,
+                            bottom: 'auto',
+                            top: 148,
                             right: 8,
                             bgcolor: 'rgba(0, 0, 0, 0.7)',
                             color: 'white',
                             padding: '4px 8px',
                             borderRadius: 1,
-                            fontSize: '0.875rem'
+                            fontSize: '0.875rem',
+                            zIndex: 1
                           }}
                         >
                           {tutorial.duration}
                         </Box>
-                        <CardContent sx={{ 
+                        <CardContent sx={{
                           flex: 1,
                           display: 'flex',
                           flexDirection: 'column',
-                          p: '12px',
-                          '&:last-child': { p: '12px' }
+                          gap: 1.5,
+                          p: '16px !important',
+                          '&:last-child': { p: '16px !important' }
                         }}>
                           <Typography variant="h6" component="div" sx={{ mb: 1, fontSize: '1.1rem' }}>
                             {tutorial.title}
@@ -156,9 +304,10 @@ export default function CookingTutorials() {
                           <Box sx={{ mt: 'auto' }}>
                             <Button
                               variant="contained"
+                              color="primary"
+                              fullWidth
                               startIcon={<PlayArrow />}
                               onClick={() => handleVideoClick(tutorial)}
-                              fullWidth
                               size="small"
                             >
                               Watch Tutorial
@@ -169,12 +318,12 @@ export default function CookingTutorials() {
                     </Grid>
                   ))}
                 </Grid>
-              </Box>
+              </Grid>
             );
           })}
 
         {/* Then render single-video categories in a single row */}
-        <Box sx={{ width: '100%', mt: 2 }}>
+        <Grid item xs={12}>
           <Grid container spacing={3}>
             {categories
               .filter(category => tutorials.filter(t => t.category === category).length === 1)
@@ -182,7 +331,7 @@ export default function CookingTutorials() {
                 const tutorial = tutorials.find(t => t.category === category)!;
                 return (
                   <Grid item xs={12} sm={6} md={4} key={category}>
-                    <Typography variant="h6" gutterBottom>
+                    <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                       {category}
                     </Typography>
                     <Card 
@@ -206,13 +355,15 @@ export default function CookingTutorials() {
                       <Box
                         sx={{
                           position: 'absolute',
-                          bottom: 188,
+                          bottom: 'auto',
+                          top: 148,
                           right: 8,
                           bgcolor: 'rgba(0, 0, 0, 0.7)',
                           color: 'white',
                           padding: '4px 8px',
                           borderRadius: 1,
-                          fontSize: '0.875rem'
+                          fontSize: '0.875rem',
+                          zIndex: 1
                         }}
                       >
                         {tutorial.duration}
@@ -221,8 +372,9 @@ export default function CookingTutorials() {
                         flex: 1,
                         display: 'flex',
                         flexDirection: 'column',
-                        p: '12px',
-                        '&:last-child': { p: '12px' }
+                        gap: 1.5,
+                        p: '16px !important',
+                        '&:last-child': { p: '16px !important' }
                       }}>
                         <Typography variant="h6" component="div" sx={{ mb: 1, fontSize: '1.1rem' }}>
                           {tutorial.title}
@@ -233,9 +385,10 @@ export default function CookingTutorials() {
                         <Box sx={{ mt: 'auto' }}>
                           <Button
                             variant="contained"
+                            color="primary"
+                            fullWidth
                             startIcon={<PlayArrow />}
                             onClick={() => handleVideoClick(tutorial)}
-                            fullWidth
                             size="small"
                           >
                             Watch Tutorial
@@ -247,7 +400,7 @@ export default function CookingTutorials() {
                 );
               })}
           </Grid>
-        </Box>
+        </Grid>
       </Grid>
 
       <Dialog
