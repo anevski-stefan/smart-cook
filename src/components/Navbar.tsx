@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSelector } from './LanguageSelector';
 
-type NavigationPage = 'search' | 'scan';
+type NavigationPage = 'search' | 'scan' | 'education';
 type SettingsKey = 'profile' | 'saved-recipes' | 'shopping-list' | 'ingredients' | 'sign-out';
 type SettingsLabel = 'navigation.profile' | 'navigation.savedRecipes' | 'navigation.shoppingList' | 'recipe.ingredients' | 'common.signOut';
 
@@ -32,7 +32,7 @@ interface SettingsItem {
   label: SettingsLabel;
 }
 
-const pages: NavigationPage[] = ['search', 'scan'];
+const pages: NavigationPage[] = ['search', 'scan', 'education'];
 const settings: SettingsItem[] = [
   { key: 'profile', label: 'navigation.profile' },
   { key: 'saved-recipes', label: 'navigation.savedRecipes' },
@@ -40,6 +40,17 @@ const settings: SettingsItem[] = [
   { key: 'ingredients', label: 'recipe.ingredients' },
   { key: 'sign-out', label: 'common.signOut' }
 ];
+
+const getTranslationKey = (page: NavigationPage): 'common.search' | 'navigation.scan' | 'navigation.education' => {
+  switch (page) {
+    case 'search':
+      return 'common.search';
+    case 'scan':
+      return 'navigation.scan';
+    case 'education':
+      return 'navigation.education';
+  }
+};
 
 export default function Navbar() {
   const router = useRouter();
@@ -131,7 +142,7 @@ export default function Navbar() {
               {pages.map((page) => (
                 <MenuItem key={page} onClick={() => handleNavigation(`/${page}`)}>
                   <Typography textAlign="center">
-                    {t(page === 'search' ? 'common.search' : 'navigation.scan' as const)}
+                    {t(getTranslationKey(page))}
                   </Typography>
                 </MenuItem>
               ))}
@@ -168,7 +179,7 @@ export default function Navbar() {
                   }
                 }}
               >
-                {t(page === 'search' ? 'common.search' : 'navigation.scan' as const)}
+                {t(getTranslationKey(page))}
               </Button>
             ))}
           </Box>

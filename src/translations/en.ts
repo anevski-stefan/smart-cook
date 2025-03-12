@@ -25,7 +25,8 @@ export const en = {
     scan: "Scan",
     shoppingList: "Shopping List",
     savedRecipes: "Saved Recipes",
-    profile: "Profile"
+    profile: "Profile",
+    education: "Education"
   },
   recipe: {
     ingredients: "Ingredients",
@@ -250,4 +251,45 @@ export const en = {
     },
     description: "Smart Cook is your AI-powered cooking companion that helps you discover recipes, manage ingredients, and cook with confidence."
   },
+  education: {
+    title: "Culinary Education Center",
+    tabs: {
+      tutorials: "Cooking Tutorials",
+      ingredients: "Ingredient Guide",
+      equipment: "Kitchen Equipment",
+      dictionary: "Culinary Dictionary",
+      safety: "Safety Guide"
+    },
+    faq: {
+      title: "Frequently Asked Questions",
+      knife: {
+        question: "How do I sharpen my kitchen knives properly?",
+        answer: "To sharpen kitchen knives, use a sharpening stone or honing steel. Start by holding the knife at a 20-degree angle and draw it across the stone or steel in a sweeping motion. Repeat on both sides. For maintenance, hone your knives before each use."
+      },
+      bakingSoda: {
+        question: "What's the difference between baking soda and baking powder?",
+        answer: "Baking soda is pure sodium bicarbonate and requires an acid to activate. Baking powder contains baking soda plus cream of tartar (an acid) and sometimes cornstarch. Baking powder is typically used when there are no acidic ingredients in a recipe."
+      },
+      contamination: {
+        question: "How do I prevent cross-contamination in my kitchen?",
+        answer: "Use separate cutting boards for raw meat and other ingredients, wash hands frequently, clean surfaces thoroughly, use different utensils for raw and cooked foods, and store raw meat on the bottom shelf of your refrigerator."
+      },
+      herbs: {
+        question: "What's the best way to store fresh herbs?",
+        answer: "Treat herbs like flowers: trim the stems and place them in a glass of water. Cover with a plastic bag and refrigerate. For basil, keep it at room temperature. Alternatively, wrap herbs in damp paper towels and store in a plastic bag in the refrigerator."
+      },
+      oil: {
+        question: "How do I know when my oil is hot enough for frying?",
+        answer: "Use a kitchen thermometer (ideal temperature is usually 350-375°F/175-190°C). Alternatively, drop a small piece of bread in the oil - if it turns golden brown in about 60 seconds, the oil is ready. Never fill the pot more than halfway with oil."
+      },
+      flour: {
+        question: "What's the proper way to measure flour?",
+        answer: "For accurate measurements, spoon flour into the measuring cup and level it off with a straight edge. Don't scoop directly with the measuring cup as this compacts the flour and can lead to using too much."
+      },
+      cuttingBoard: {
+        question: "How do I prevent my cutting board from slipping?",
+        answer: "Place a damp paper towel or kitchen towel underneath your cutting board. You can also use non-slip mats or boards with rubber feet. This creates friction and keeps the board stable while chopping."
+      }
+    }
+  }
 } as const; 

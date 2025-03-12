@@ -25,7 +25,8 @@ export const es = {
     scan: "Escanear",
     shoppingList: "Lista de Compras",
     savedRecipes: "Recetas Guardadas",
-    profile: "Perfil"
+    profile: "Perfil",
+    education: "Educación"
   },
   recipe: {
     ingredients: "Ingredientes",
@@ -251,4 +252,45 @@ export const es = {
     },
     description: "Smart Cook es tu compañero de cocina impulsado por IA que te ayuda a descubrir recetas, gestionar ingredientes y cocinar con confianza."
   },
+  education: {
+    title: "Centro de Educación Culinaria",
+    tabs: {
+      tutorials: "Tutoriales de Cocina",
+      ingredients: "Guía de Ingredientes",
+      equipment: "Equipo de Cocina",
+      dictionary: "Diccionario Culinario",
+      safety: "Guía de Seguridad"
+    },
+    faq: {
+      title: "Preguntas Frecuentes",
+      knife: {
+        question: "¿Cómo afilo correctamente mis cuchillos de cocina?",
+        answer: "Para afilar los cuchillos de cocina, usa una piedra de afilar o una chaira. Comienza sosteniendo el cuchillo en un ángulo de 20 grados y pásalo por la piedra o chaira con un movimiento de barrido. Repite en ambos lados. Para mantenimiento, afila tus cuchillos antes de cada uso."
+      },
+      bakingSoda: {
+        question: "¿Cuál es la diferencia entre bicarbonato de sodio y polvo de hornear?",
+        answer: "El bicarbonato de sodio es bicarbonato puro y requiere un ácido para activarse. El polvo de hornear contiene bicarbonato más cremor tártaro (un ácido) y a veces almidón de maíz. El polvo de hornear se usa típicamente cuando no hay ingredientes ácidos en una receta."
+      },
+      contamination: {
+        question: "¿Cómo prevengo la contaminación cruzada en mi cocina?",
+        answer: "Usa tablas de cortar separadas para carne cruda y otros ingredientes, lávate las manos frecuentemente, limpia las superficies a fondo, usa diferentes utensilios para alimentos crudos y cocinados, y almacena la carne cruda en el estante inferior de tu refrigerador."
+      },
+      herbs: {
+        question: "¿Cuál es la mejor manera de almacenar hierbas frescas?",
+        answer: "Trata las hierbas como flores: recorta los tallos y colócalas en un vaso con agua. Cúbrelas con una bolsa de plástico y refrigera. Para la albahaca, mantenla a temperatura ambiente. Alternativamente, envuelve las hierbas en toallas de papel húmedas y guárdalas en una bolsa de plástico en el refrigerador."
+      },
+      oil: {
+        question: "¿Cómo sé cuándo el aceite está lo suficientemente caliente para freír?",
+        answer: "Usa un termómetro de cocina (la temperatura ideal es usualmente 350-375°F/175-190°C). Alternativamente, deja caer un pequeño trozo de pan en el aceite - si se dora en aproximadamente 60 segundos, el aceite está listo. Nunca llenes la olla más de la mitad con aceite."
+      },
+      flour: {
+        question: "¿Cuál es la forma correcta de medir la harina?",
+        answer: "Para mediciones precisas, vierte la harina en la taza medidora con una cuchara y nivélala con un borde recto. No saques directamente con la taza medidora ya que esto compacta la harina y puede llevar a usar demasiada."
+      },
+      cuttingBoard: {
+        question: "¿Cómo evito que mi tabla de cortar se deslice?",
+        answer: "Coloca una toalla de papel o paño de cocina húmedo debajo de tu tabla de cortar. También puedes usar alfombrillas antideslizantes o tablas con pies de goma. Esto crea fricción y mantiene la tabla estable mientras cortas."
+      }
+    }
+  }
 } as const; 

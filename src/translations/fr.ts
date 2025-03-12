@@ -25,7 +25,8 @@ export const fr = {
     scan: "Scanner",
     shoppingList: "Liste de Courses",
     savedRecipes: "Recettes Sauvegardées",
-    profile: "Profil"
+    profile: "Profil",
+    education: "Éducation"
   },
   recipe: {
     ingredients: "Ingrédients",
@@ -251,4 +252,45 @@ export const fr = {
     },
     description: "Smart Cook est votre assistant de cuisine alimenté par l'IA qui vous aide à découvrir des recettes, gérer vos ingrédients et cuisiner en toute confiance."
   },
+  education: {
+    title: "Centre d'Éducation Culinaire",
+    tabs: {
+      tutorials: "Tutoriels de Cuisine",
+      ingredients: "Guide des Ingrédients",
+      equipment: "Équipement de Cuisine",
+      dictionary: "Dictionnaire Culinaire",
+      safety: "Guide de Sécurité"
+    },
+    faq: {
+      title: "Questions Fréquentes",
+      knife: {
+        question: "Comment affûter correctement mes couteaux de cuisine ?",
+        answer: "Pour affûter les couteaux de cuisine, utilisez une pierre à aiguiser ou un fusil à aiguiser. Commencez en tenant le couteau à un angle de 20 degrés et passez-le sur la pierre ou le fusil avec un mouvement de balayage. Répétez des deux côtés. Pour l'entretien, aiguisez vos couteaux avant chaque utilisation."
+      },
+      bakingSoda: {
+        question: "Quelle est la différence entre le bicarbonate de soude et la levure chimique ?",
+        answer: "Le bicarbonate de soude est du bicarbonate pur et nécessite un acide pour s'activer. La levure chimique contient du bicarbonate plus de la crème de tartre (un acide) et parfois de l'amidon de maïs. La levure chimique est généralement utilisée lorsqu'il n'y a pas d'ingrédients acides dans une recette."
+      },
+      contamination: {
+        question: "Comment prévenir la contamination croisée dans ma cuisine ?",
+        answer: "Utilisez des planches à découper séparées pour la viande crue et les autres ingrédients, lavez-vous fréquemment les mains, nettoyez soigneusement les surfaces, utilisez différents ustensiles pour les aliments crus et cuits, et rangez la viande crue sur l'étagère du bas de votre réfrigérateur."
+      },
+      herbs: {
+        question: "Quelle est la meilleure façon de conserver les herbes fraîches ?",
+        answer: "Traitez les herbes comme des fleurs : coupez les tiges et placez-les dans un verre d'eau. Couvrez avec un sac plastique et réfrigérez. Pour le basilic, gardez-le à température ambiante. Alternativement, enveloppez les herbes dans des serviettes en papier humides et conservez-les dans un sac plastique au réfrigérateur."
+      },
+      oil: {
+        question: "Comment savoir quand l'huile est assez chaude pour la friture ?",
+        answer: "Utilisez un thermomètre de cuisine (la température idéale est généralement de 175-190°C). Alternativement, laissez tomber un petit morceau de pain dans l'huile - s'il dore en environ 60 secondes, l'huile est prête. Ne remplissez jamais la casserole plus qu'à moitié avec de l'huile."
+      },
+      flour: {
+        question: "Quelle est la bonne façon de mesurer la farine ?",
+        answer: "Pour des mesures précises, versez la farine dans la tasse à mesurer avec une cuillère et égalisez avec un bord droit. Ne prélevez pas directement avec la tasse à mesurer car cela compacte la farine et peut conduire à en utiliser trop."
+      },
+      cuttingBoard: {
+        question: "Comment empêcher ma planche à découper de glisser ?",
+        answer: "Placez une serviette en papier ou un torchon humide sous votre planche à découper. Vous pouvez également utiliser des tapis antidérapants ou des planches avec des pieds en caoutchouc. Cela crée de la friction et maintient la planche stable pendant la découpe."
+      }
+    }
+  }
 } as const; 

@@ -25,7 +25,8 @@ export const de = {
     scan: "Scannen",
     shoppingList: "Einkaufsliste",
     savedRecipes: "Gespeicherte Rezepte",
-    profile: "Profil"
+    profile: "Profil",
+    education: "Bildung"
   },
   recipe: {
     ingredients: "Zutaten",
