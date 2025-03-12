@@ -33,75 +33,67 @@ export default function LoginPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <>
       <Navbar />
-      <Box sx={{ 
-        flex: 1, 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        py: 4
-      }}>
-        <Container maxWidth="sm">
-          <Paper sx={{ p: 4 }} elevation={3}>
-            <Typography variant="h4" component="h1" gutterBottom align="center">
-              {t('common.signIn')}
+      <Container maxWidth="sm" sx={{ mt: 4 }}>
+        <Paper sx={{ p: 4 }} elevation={3}>
+          <Typography variant="h4" component="h1" gutterBottom align="center">
+            {t('common.signIn')}
+          </Typography>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <TextField
+              label={t('common.email')}
+              type="email"
+              fullWidth
+              margin="normal"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <TextField
+              label={t('common.password')}
+              type="password"
+              fullWidth
+              margin="normal"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              fullWidth
+              size="large"
+              sx={{ mt: 3 }}
+              disabled={loading}
+            >
+              {loading ? t('auth.signingIn') : t('auth.signInButton')}
+            </Button>
+          </form>
+
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              {t('common.noAccount')}{' '}
+              <Link href="/auth/register" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                {t('common.signUp')}
+              </Link>
             </Typography>
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-
-            <form onSubmit={handleSubmit}>
-              <TextField
-                label={t('common.email')}
-                type="email"
-                fullWidth
-                margin="normal"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <TextField
-                label={t('common.password')}
-                type="password"
-                fullWidth
-                margin="normal"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                fullWidth
-                size="large"
-                sx={{ mt: 3 }}
-                disabled={loading}
-              >
-                {loading ? t('auth.signingIn') : t('auth.signInButton')}
-              </Button>
-            </form>
-
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                {t('common.noAccount')}{' '}
-                <Link href="/auth/register" style={{ color: 'inherit', textDecoration: 'underline' }}>
-                  {t('common.signUp')}
-                </Link>
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                <Link href="/auth/reset-password" style={{ color: 'inherit', textDecoration: 'underline' }}>
-                  {t('common.forgotPassword')}
-                </Link>
-              </Typography>
-            </Box>
-          </Paper>
-        </Container>
-      </Box>
-    </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <Link href="/auth/reset-password" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                {t('common.forgotPassword')}
+              </Link>
+            </Typography>
+          </Box>
+        </Paper>
+      </Container>
+    </>
   );
 } 
