@@ -144,9 +144,26 @@ function extractInstructionsFromMealDB(instructions: string): string[] {
     .filter(step => step.length > 0);
 }
 
-function getDifficulty(readyInMinutes: number, ingredientCount: number): string {
-  if (readyInMinutes <= 30 && ingredientCount <= 5) return 'Easy';
-  if (readyInMinutes >= 60 || ingredientCount >= 12) return 'Hard';
+type Difficulty = 'Easy' | 'Medium' | 'Hard';
+
+function getDifficulty(readyInMinutes: number, ingredientCount: number): Difficulty {
+  // Log the inputs for debugging
+  console.log(`Calculating difficulty - Time: ${readyInMinutes}min, Ingredients: ${ingredientCount}`);
+  
+  // Easy: Quick recipes with few ingredients
+  if (readyInMinutes <= 30 && ingredientCount <= 6) {
+    console.log('→ Easy (quick and simple)');
+    return 'Easy';
+  }
+  
+  // Hard: Long cooking time OR many ingredients
+  if (readyInMinutes > 60 || ingredientCount >= 10) {
+    console.log('→ Hard (long cooking time or complex)');
+    return 'Hard';
+  }
+  
+  // Medium: Everything else
+  console.log('→ Medium (moderate complexity)');
   return 'Medium';
 }
 
@@ -171,23 +188,196 @@ function recipeMatchesSearch(meal: MealDBRecipe, searchTerm: string): boolean {
   return false;
 }
 
+function filterRecipesByComplexity(recipe: Recipe, selectedComplexity: Difficulty[]): boolean {
+  if (selectedComplexity.length === 0) return true;
+  
+  const recipeDifficulty = recipe.difficulty;
+  const matches = selectedComplexity.some(difficulty => difficulty === recipeDifficulty);
+  
+  console.log(`Complexity filter check:
+    Recipe: "${recipe.title}"
+    Difficulty: ${recipeDifficulty}
+    Selected difficulties: [${selectedComplexity.join(', ')}]
+    Match: ${matches ? 'YES' : 'NO'}
+    Time: ${recipe.readyInMinutes}min
+    Ingredients: ${recipe.ingredients.length}
+  `);
+  
+  return matches;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('query');
     const offset = parseInt(searchParams.get('offset') || '0');
     const number = parseInt(searchParams.get('number') || '12');
+    const minTime = parseInt(searchParams.get('minTime') || '0');
+    const maxTime = parseInt(searchParams.get('maxTime') || '180');
+    
+    // Parse and validate complexity values
+    const rawComplexity = searchParams.get('complexity');
+    console.log('Raw complexity from URL:', rawComplexity);
+    
+    const complexity: Difficulty[] = (rawComplexity?.split(',') || [])
+      .map(c => c.trim().toLowerCase())
+      .map(c => {
+        switch (c) {
+          case 'easy': return 'Easy';
+          case 'medium': return 'Medium';
+          case 'hard': return 'Hard';
+          default:
+            console.log(`Skipping invalid complexity value: ${c}`);
+            return null;
+        }
+      })
+      .filter((c): c is Difficulty => c !== null);
 
-    if (!query) {
-      return NextResponse.json(
-        { message: 'Query parameter is required' },
-        { status: 400 }
-      );
+    console.log('Active complexity filters:', complexity);
+
+    console.log('Search params:', {
+      query,
+      offset,
+      number,
+      minTime,
+      maxTime,
+      complexity,
+      rawComplexity
+    });
+
+    // If query is 'popular' or empty, fetch random recipes
+    if (!query || query === 'popular') {
+      console.log('Fetching random recipes from TheMealDB...');
+      const randomRecipes = [];
+      
+      try {
+        // Make multiple calls to get random recipes since the API only returns one at a time
+        // Fetch more recipes than needed to account for filtering
+        const fetchCount = number * 3; // Increased to account for complexity filtering
+        for (let i = 0; i < fetchCount; i++) {
+          try {
+            console.log(`Fetching random recipe ${i + 1}/${fetchCount}...`);
+            const response = await fetch(`${MEALDB_BASE_URL}/random.php`);
+            
+            if (!response.ok) {
+              console.error(`MealDB API error for random recipe ${i + 1}:`, response.status);
+              continue;
+            }
+            
+            const data = await response.json();
+            if (!data || !data.meals || !data.meals[0]) {
+              console.error(`Invalid data format for random recipe ${i + 1}:`, data);
+              continue;
+            }
+            
+            randomRecipes.push(data.meals[0]);
+          } catch (fetchError) {
+            console.error(`Error fetching random recipe ${i + 1}:`, fetchError);
+            continue;
+          }
+        }
+
+        if (randomRecipes.length === 0) {
+          console.error('Failed to fetch any random recipes');
+          return NextResponse.json(
+            { message: 'No recipes available at the moment' },
+            { status: 503 }
+          );
+        }
+
+        console.log(`Successfully fetched ${randomRecipes.length} random recipes`);
+
+        // Transform and filter the recipes
+        const recipes: Recipe[] = [];
+        for (const meal of randomRecipes) {
+          try {
+            const ingredients = extractIngredientsFromMealDB(meal);
+            const cookingTime = getCookingTime(meal.strCategory, meal.strInstructions);
+            const ingredientNames = Array.from({ length: 20 }, (_, i) => meal[`strIngredient${i + 1}` as keyof MealDBRecipe])
+              .filter((name): name is string => !!name);
+            const nutritionalInfo = estimateNutritionalInfo(ingredientNames);
+
+            recipes.push({
+              id: meal.idMeal,
+              title: meal.strMeal,
+              image: meal.strMealThumb,
+              description: `${meal.strCategory} dish from ${meal.strArea} cuisine. ${meal.strTags ? `Tags: ${meal.strTags}` : ''}`,
+              readyInMinutes: cookingTime,
+              servings: 4,
+              cuisine: meal.strArea || 'International',
+              difficulty: getDifficulty(cookingTime, ingredients.length),
+              summary: `${meal.strCategory} dish from ${meal.strArea} cuisine`,
+              nutritionalInfo,
+              ingredients,
+              instructions: extractInstructionsFromMealDB(meal.strInstructions).map((step, index) => ({
+                id: `${meal.idMeal}-step-${index + 1}`,
+                text: step
+              }))
+            });
+          } catch (transformError) {
+            console.error('Error transforming recipe:', transformError, meal);
+            continue;
+          }
+        }
+
+        if (recipes.length === 0) {
+          console.error('No recipes available after transformation');
+          return NextResponse.json(
+            { message: 'No recipes available at the moment' },
+            { status: 503 }
+          );
+        }
+
+        // Apply filters
+        const filteredRecipes = recipes
+          .filter(recipe => recipe.readyInMinutes >= minTime && recipe.readyInMinutes <= maxTime)
+          .filter(recipe => filterRecipesByComplexity(recipe, complexity));
+
+        console.log('Recipes after filtering:', {
+          total: recipes.length,
+          afterTimeFilter: recipes.filter(r => r.readyInMinutes >= minTime && r.readyInMinutes <= maxTime).length,
+          afterComplexityFilter: filteredRecipes.length,
+          minTime,
+          maxTime,
+          complexity,
+          cookingTimes: recipes.map(r => r.readyInMinutes),
+          difficulties: recipes.map(r => r.difficulty)
+        });
+
+        if (filteredRecipes.length === 0) {
+          return NextResponse.json({
+            results: [],
+            hasMore: false,
+            totalResults: 0,
+            message: 'No recipes found matching the selected filters'
+          });
+        }
+
+        // Apply pagination after filtering
+        const paginatedRecipes = filteredRecipes.slice(offset, offset + number);
+
+        console.log('Final results:', {
+          totalRecipes: filteredRecipes.length,
+          returnedRecipes: paginatedRecipes.length,
+          minTime,
+          maxTime,
+          complexity
+        });
+
+        return NextResponse.json({
+          results: paginatedRecipes,
+          hasMore: offset + number < filteredRecipes.length,
+          totalResults: filteredRecipes.length
+        });
+      } catch (randomError) {
+        console.error('Error in random recipe flow:', randomError);
+        throw randomError;
+      }
     }
 
+    // Regular search by name
     console.log('Searching recipes by name with TheMealDB...', query);
     
-    // Only search by name since we only want title matches
     const nameResponse = await fetch(`${MEALDB_BASE_URL}/search.php?s=${encodeURIComponent(query)}`);
     if (!nameResponse.ok) {
       throw new Error(`MealDB API error: ${nameResponse.status}`);
@@ -198,13 +388,8 @@ export async function GET(request: Request) {
       recipeMatchesSearch(meal, query)
     );
 
-    console.log(`Found ${allResults.length} total matches for "${query}"`);
-
-    // Paginate the results
-    const paginatedResults = allResults.slice(offset, offset + number);
-
-    // Transform the response to match our Recipe type
-    const recipes: Recipe[] = paginatedResults.map((meal: MealDBRecipe) => {
+    // Transform all results first
+    let recipes: Recipe[] = allResults.map((meal: MealDBRecipe) => {
       const ingredients = extractIngredientsFromMealDB(meal);
       const cookingTime = getCookingTime(meal.strCategory, meal.strInstructions);
       const ingredientNames = Array.from({ length: 20 }, (_, i) => meal[`strIngredient${i + 1}` as keyof MealDBRecipe])
@@ -230,9 +415,45 @@ export async function GET(request: Request) {
       };
     });
 
+    // Apply filters
+    recipes = recipes
+      .filter(recipe => recipe.readyInMinutes >= minTime && recipe.readyInMinutes <= maxTime)
+      .filter(recipe => filterRecipesByComplexity(recipe, complexity));
+
+    console.log('Recipes after filtering:', {
+      total: allResults.length,
+      afterTimeFilter: recipes.filter(r => r.readyInMinutes >= minTime && r.readyInMinutes <= maxTime).length,
+      afterComplexityFilter: recipes.length,
+      minTime,
+      maxTime,
+      complexity,
+      difficulties: recipes.map(r => r.difficulty)
+    });
+
+    // Apply pagination after filtering
+    const startIndex = Math.min(offset, recipes.length);
+    const endIndex = Math.min(offset + number, recipes.length);
+    const paginatedResults = recipes.slice(startIndex, endIndex);
+    const hasMore = endIndex < recipes.length;
+
+    console.log(`Pagination details:`, {
+      query,
+      totalResults: recipes.length,
+      offset,
+      number,
+      startIndex,
+      endIndex,
+      returnedResults: paginatedResults.length,
+      hasMore,
+      minTime,
+      maxTime,
+      complexity
+    });
+
     return NextResponse.json({
-      results: recipes,
-      totalResults: allResults.length,
+      results: paginatedResults,
+      hasMore,
+      totalResults: recipes.length
     });
   } catch (error) {
     console.error('Error searching recipes:', error);

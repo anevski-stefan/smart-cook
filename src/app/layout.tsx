@@ -3,6 +3,7 @@ import { Geist } from 'next/font/google';
 import "./globals.css";
 import Providers from '@/components/Providers';
 import Footer from '@/components/Footer';
+import Navbar from '@/components/Navbar';
 
 const geist = Geist({ subsets: ['latin'] });
 
@@ -21,6 +22,7 @@ export default function RootLayout({
       <body>
         <Providers>
           <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            <Navbar />
             <div style={{ flex: 1 }}>
               {children}
             </div>

@@ -10,12 +10,13 @@ import {
   TextField,
   InputAdornment,
   IconButton,
+  Alert,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import Navbar from '@/components/Navbar';
 import RecipeCard from '@/components/RecipeCard';
 import RecipeFilterSidebar, { RecipeFilters } from '@/components/RecipeFilterSidebar';
-import type { Recipe } from '@/types/ingredient';
+import { Recipe } from '@/types/recipe';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'next/navigation';
 
@@ -35,6 +36,7 @@ export default function SearchPage() {
   const [filters, setFilters] = useState<RecipeFilters>(initialFilters);
   const [loading, setLoading] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -47,86 +49,135 @@ export default function SearchPage() {
     if (observer.current) observer.current.disconnect();
     
     observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
+      if (entries[0].isIntersecting && hasMore && !loading) {
+        console.log('Last recipe element is visible, loading more...', { currentPage: page });
         setPage(prevPage => prevPage + 1);
       }
+    }, {
+      root: null,
+      rootMargin: '20px',
+      threshold: 0.1
     });
     
     if (node) observer.current.observe(node);
-  }, [loading, hasMore]);
+  }, [loading, hasMore, page]);
 
   const fetchRecipes = useCallback(async (currentFilters: RecipeFilters, currentPage: number, isNewSearch: boolean = false) => {
     setLoading(true);
+    setError(null);
     
     try {
+      const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+      console.log(`Fetching recipes - page: ${currentPage}, offset: ${offset}, isNewSearch: ${isNewSearch}`);
+      
       const searchParams = new URLSearchParams({
-        ...(currentFilters.searchTerm.trim() && { query: currentFilters.searchTerm }),
+        query: currentFilters.searchTerm.trim() || 'popular',
         ...(currentFilters.complexity.length > 0 && { complexity: currentFilters.complexity.join(',') }),
         ...(currentFilters.mealType.length > 0 && { mealType: currentFilters.mealType.join(',') }),
         ...(currentFilters.dietary.length > 0 && { dietary: currentFilters.dietary.join(',') }),
         minTime: currentFilters.cookingTime[0].toString(),
         maxTime: currentFilters.cookingTime[1].toString(),
-        page: currentPage.toString(),
+        offset: offset.toString(),
         number: ITEMS_PER_PAGE.toString(),
       });
 
-      // Use the regular recipes endpoint if no search term, otherwise use search endpoint
-      const endpoint = currentFilters.searchTerm.trim() ? '/api/recipes/search' : '/api/recipes';
-      console.log('Fetching recipes with params:', Object.fromEntries(searchParams.entries()));
-      const response = await fetch(`${endpoint}?${searchParams}`);
+      const response = await fetch(`/api/recipes/search?${searchParams}`);
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.message || 'Failed to fetch recipes');
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch recipes');
+      }
 
-      setRecipes(prevRecipes => isNewSearch ? data.results : [...prevRecipes, ...data.results]);
-      setHasMore(data.hasMore);
+      console.log('API Response:', {
+        resultsCount: data.results?.length,
+        hasMore: data.hasMore,
+        totalResults: data.totalResults,
+        currentPage,
+        offset,
+        isPopularSearch: !currentFilters.searchTerm.trim()
+      });
+
+      const results = data.results || [];
+      
+      setRecipes(prevRecipes => {
+        const newRecipes = isNewSearch ? results : [...prevRecipes, ...results];
+        // For popular/random recipes (no search term), always allow more if we got results
+        const isPopularSearch = !currentFilters.searchTerm.trim();
+        const hasMoreRecipes = isPopularSearch ? results.length > 0 : newRecipes.length < data.totalResults;
+        
+        console.log('Pagination status:', { 
+          currentCount: newRecipes.length, 
+          totalResults: data.totalResults, 
+          hasMoreRecipes,
+          isPopularSearch
+        });
+        
+        setHasMore(hasMoreRecipes);
+        return newRecipes;
+      });
+      
     } catch (error) {
       console.error('Error fetching recipes:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch recipes');
+      if (isNewSearch) {
+        setRecipes([]);
+      }
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const handleSearch = useCallback(() => {
-    if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current);
+  // Handle pagination separately
+  useEffect(() => {
+    if (!isInitialMount.current && page > 1) {
+      console.log(`Page changed to ${page}, fetching more recipes...`);
+      fetchRecipes(filters, page, false);
     }
-    searchTimeout.current = setTimeout(() => {
+  }, [page, filters, fetchRecipes]);
+
+  // Debounced search handler
+  const debouncedSearch = useCallback(
+    (currentFilters: RecipeFilters) => {
+      console.log('Debounced search triggered');
       setPage(1);
-      fetchRecipes(filters, 1, true);
-    }, 300);
-  }, [filters, fetchRecipes]);
+      setRecipes([]); // Clear existing recipes before new search
+      fetchRecipes(currentFilters, 1, true);
+    },
+    [fetchRecipes]
+  );
 
-  const handleFiltersChange = (newFilters: RecipeFilters) => {
-    setFilters(newFilters);
-  };
+  // Handle search with debounce
+  useEffect(() => {
+    if (!isInitialMount.current) {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+      searchTimeout.current = setTimeout(() => {
+        console.log('Search timeout triggered');
+        debouncedSearch(filters);
+      }, 300);
 
-  // Load initial recipes
+      return () => {
+        if (searchTimeout.current) {
+          clearTimeout(searchTimeout.current);
+        }
+      };
+    }
+  }, [filters, debouncedSearch]);
+
+  // Load initial recipes only once
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
+      console.log('Loading initial recipes');
       fetchRecipes(initialFilters, 1, true);
     }
   }, [fetchRecipes]);
 
-  // Handle filter changes
-  useEffect(() => {
-    if (!isInitialMount.current) {
-      handleSearch();
-    }
-    return () => {
-      if (searchTimeout.current) {
-        clearTimeout(searchTimeout.current);
-      }
-    };
-  }, [handleSearch]);
-
-  // Handle pagination
-  useEffect(() => {
-    if (page > 1) {
-      fetchRecipes(filters, page, false);
-    }
-  }, [page, filters, fetchRecipes]);
+  const handleFiltersChange = (newFilters: RecipeFilters) => {
+    setFilters(newFilters);
+  };
 
   return (
     <>
@@ -158,6 +209,7 @@ export default function SearchPage() {
             maxWidth="lg" 
             sx={{ 
               mt: 4,
+              mb: 8,
               px: { xs: 2, sm: 3 },
               width: '100%',
               maxWidth: '100% !important'
@@ -187,9 +239,9 @@ export default function SearchPage() {
                   endAdornment: (
                     <InputAdornment position="end">
                       <IconButton
-                        onClick={handleSearch}
+                        onClick={() => debouncedSearch(filters)}
                         aria-label="search recipes"
-                        disabled={loading || !filters.searchTerm.trim()}
+                        disabled={loading}
                         sx={{
                           mr: 1,
                           color: '#666666',
@@ -213,17 +265,23 @@ export default function SearchPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    handleSearch();
+                    debouncedSearch(filters);
                   }
                 }}
               />
             </Box>
 
+            {error && (
+              <Alert severity="error" sx={{ mb: 4 }}>
+                {error}
+              </Alert>
+            )}
+
             {loading && page === 1 ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                 <CircularProgress />
               </Box>
-            ) : recipes.length > 0 ? (
+            ) : recipes && recipes.length > 0 ? (
               <>
                 <Grid container spacing={3}>
                   {recipes.map((recipe, index) => (
@@ -247,19 +305,15 @@ export default function SearchPage() {
                     <CircularProgress />
                   </Box>
                 )}
-                {!loading && !hasMore && (
-                  <Typography color="text.secondary" align="center" sx={{ mt: 4 }}>
-                    {t('search.noMoreRecipes')}
+                {!loading && !hasMore && recipes.length > 0 && (
+                  <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
+                    {t('recipe.noMoreRecipes')}
                   </Typography>
                 )}
               </>
-            ) : filters.searchTerm ? (
-              <Typography color="text.secondary" align="center">
-                {t('search.noRecipesFound')}
-              </Typography>
-            ) : (
-              <Typography color="text.secondary" align="center">
-                {t('search.enterSearchTerm')}
+            ) : !loading && (
+              <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
+                {filters.searchTerm ? t('recipe.noRecipesFound') : t('search.enterSearchTerm')}
               </Typography>
             )}
           </Container>

@@ -25,6 +25,7 @@ export const de = {
     scan: "Scannen",
     shoppingList: "Einkaufsliste",
     savedRecipes: "Gespeicherte Rezepte",
+    myRecipes: "Meine Rezepte",
     profile: "Profil",
     education: "Bildung"
   },
@@ -39,6 +40,8 @@ export const de = {
     noMoreRecipes: "Keine weiteren Rezepte zum Laden",
     noRecipesFound: "Keine Rezepte gefunden. Versuchen Sie andere Filter.",
     findRecipes: "Rezepte finden",
+    create: "Rezept Erstellen",
+    createPrompt: "Erstellen Sie Ihr erstes Rezept",
   },
   cooking: {
     start: "Kochen Starten",
