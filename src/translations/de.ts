@@ -25,6 +25,7 @@ export const de = {
     scan: "Scannen",
     shoppingList: "Einkaufsliste",
     savedRecipes: "Gespeicherte Rezepte",
+    profile: "Profil"
   },
   recipe: {
     ingredients: "Zutaten",
@@ -89,10 +90,56 @@ export const de = {
     signInButton: "Anmelden",
     signUpLink: "Registrieren",
     resetPassword: "Passwort zurücksetzen",
+    routes: {
+      login: "/auth/login",
+      register: "/auth/register",
+      resetPassword: "/auth/reset-password",
+      verifyEmail: "/auth/verify-email"
+    },
+    register: {
+      title: "Konto Erstellen",
+      creatingAccount: "Konto wird erstellt...",
+      createButton: "Konto Erstellen",
+      alreadyHaveAccount: "Haben Sie bereits ein Konto?",
+      passwordHelperText: "Das Passwort muss mindestens 6 Zeichen lang sein",
+      errors: {
+        passwordMismatch: "Die Passwörter stimmen nicht überein",
+        passwordTooShort: "Das Passwort muss mindestens 6 Zeichen lang sein",
+        emailRegistered: "Diese E-Mail-Adresse ist bereits registriert. Bitte versuchen Sie sich anzumelden.",
+        invalidEmail: "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+        invalidPassword: "Das Passwort muss mindestens 6 Zeichen lang sein und Buchstaben sowie Zahlen enthalten.",
+        generic: "Fehler beim Erstellen des Kontos. Bitte versuchen Sie es erneut."
+      }
+    },
+    verifyEmail: {
+      title: "Überprüfen Sie Ihre E-Mail",
+      description: "Wir haben Ihnen eine E-Mail mit einem Bestätigungslink gesendet. Bitte überprüfen Sie Ihren Posteingang und klicken Sie auf den Link, um Ihre E-Mail-Adresse zu bestätigen.",
+      spamNote: "Wenn Sie die E-Mail nicht sehen können, überprüfen Sie bitte Ihren Spam-Ordner.",
+      verifying: "E-Mail wird überprüft...",
+      success: "E-Mail erfolgreich bestätigt!",
+      redirecting: "Weiterleitung zur Startseite...",
+      status: "Bestätigungsstatus",
+      errors: {
+        expired: "Der Bestätigungslink ist abgelaufen. Bitte fordern Sie einen neuen an.",
+        generic: "Bitte versuchen Sie sich mit Ihrer E-Mail und Ihrem Passwort anzumelden"
+      },
+      goToLogin: "Zur Anmeldung"
+    }
   },
   scan: {
-    noIngredients: "Keine Zutaten gescannt",
+    title: "Zutaten Scannen",
+    takePhotoPrompt: "Klicken Sie unten, um ein Foto aufzunehmen",
+    takePhoto: "Foto aufnehmen",
+    scannedIngredients: "Gescannte Zutaten",
+    clearAll: "Alles Löschen",
+    noIngredients: "Keine gescannten Zutaten",
     useCamera: "Verwenden Sie die Kamera zum Scannen von Zutaten",
+    saveIngredient: "Zutat Speichern",
+    ingredientAdded: "wurde zu Ihren Zutaten hinzugefügt!",
+    saveError: "Fehler beim Speichern der Zutat",
+    processingError: "Fehler bei der Bildverarbeitung",
+    imageSizeError: "Die Bildgröße ist zu groß. Bitte verwenden Sie ein Bild unter 5MB.",
+    noIngredientsDetected: "Keine Zutaten erkannt",
   },
   search: {
     searchRecipes: "Rezepte suchen",
@@ -133,5 +180,65 @@ export const de = {
       medium: "Mittel",
       hard: "Schwer"
     }
-  }
+  },
+  profile: {
+    settings: "Profileinstellungen",
+    fullName: "Vollständiger Name",
+    avatarUrl: "Avatar-URL",
+    avatarHelp: "Geben Sie eine URL für Ihr Profilbild ein",
+    email: "E-Mail",
+    updating: "Aktualisierung...",
+    updateProfile: "Profil Aktualisieren",
+    updateSuccess: "Profil erfolgreich aktualisiert!",
+    updateError: "Fehler beim Aktualisieren des Profils. Bitte versuchen Sie es erneut."
+  },
+  shoppingList: {
+    title: 'Einkaufsliste',
+    addItemTitle: 'Neuen Artikel hinzufügen',
+    itemName: 'Artikelname',
+    amount: 'Menge',
+    unit: 'Einheit',
+    addToList: 'Zur Liste hinzufügen',
+    addItem: 'Artikel hinzufügen',
+    clearChecked: 'Markierte Artikel löschen',
+    empty: 'Ihre Einkaufsliste ist leer',
+    updateSuccess: 'Artikel erfolgreich aktualisiert',
+    updateError: 'Fehler beim Aktualisieren des Artikels',
+    deleteSuccess: 'Artikel erfolgreich gelöscht',
+    deleteError: 'Fehler beim Löschen des Artikels',
+    addSuccess: 'Artikel erfolgreich hinzugefügt',
+    addError: 'Fehler beim Hinzufügen des Artikels',
+  },
+  ingredients: {
+    title: "Meine Zutaten",
+    subtitle: "Verwalten Sie Ihre Vorratskammer und behalten Sie den Überblick über Ihre Zutaten",
+    addIngredients: "Zutaten Hinzufügen",
+    scanIngredients: "Zutaten Scannen",
+    emptyTitle: "Ihre Vorratskammer ist leer",
+    emptyDescription: "Beginnen Sie damit, Zutaten zu scannen, um sie Ihrer Liste hinzuzufügen",
+    loadError: "Fehler beim Laden der Zutaten",
+    deleteError: "Fehler beim Löschen der Zutat",
+    units: {
+      piece: "Stück",
+      pieces: "Stück",
+      gram: "Gramm",
+      grams: "Gramm",
+      kilogram: "Kilogramm",
+      kilograms: "Kilogramm",
+      milliliter: "Milliliter",
+      milliliters: "Milliliter",
+      liter: "Liter",
+      liters: "Liter",
+      tablespoon: "Esslöffel",
+      tablespoons: "Esslöffel",
+      teaspoon: "Teelöffel",
+      teaspoons: "Teelöffel",
+      cup: "Tasse",
+      cups: "Tassen",
+      pound: "Pfund",
+      pounds: "Pfund",
+      ounce: "Unze",
+      ounces: "Unzen",
+    },
+  },
 } as const; 

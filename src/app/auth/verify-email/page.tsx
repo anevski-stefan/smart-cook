@@ -4,14 +4,16 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Container, Typography, Paper, Box, CircularProgress, Button } from '@mui/material';
 import { supabase } from '@/utils/supabase-client';
+import { useTranslation } from '@/hooks/useTranslation';
 import Navbar from '@/components/Navbar';
 
 export default function VerifyEmail() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const params = useSearchParams();
+  const { t } = useTranslation();
   const [verifying, setVerifying] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const status = searchParams.get('status');
+  const status = params?.get('status') ?? null;
 
   useEffect(() => {
     const verifyEmail = async () => {
@@ -36,26 +38,27 @@ export default function VerifyEmail() {
 
         // If not authenticated, try to get token from URL
         console.log('Full URL:', window.location.href);
-        let token = searchParams.get('token');
+        const token = params?.get('token') ?? null;
         
-        if (!token && window.location.hash) {
+        let finalToken = token;
+        if (!finalToken && window.location.hash) {
           const hashParams = new URLSearchParams(window.location.hash.substring(1));
-          token = hashParams.get('access_token');
+          finalToken = hashParams.get('access_token');
           console.log('Hash params:', Object.fromEntries(hashParams));
         }
 
-        console.log('Verification token:', token ? 'Found' : 'Not found');
+        console.log('Verification token:', finalToken ? 'Found' : 'Not found');
 
-        if (!token) {
+        if (!finalToken) {
           // No token but also no user - this is an error
-          setError('Please try logging in with your email and password');
+          setError(t('auth.verifyEmail.errors.generic'));
           setVerifying(false);
           return;
         }
 
         // Try to verify with the token
         const { error: verifyError } = await supabase.auth.verifyOtp({
-          token,
+          token: finalToken,
           type: 'signup',
           email: '' // The email is encoded in the token
         });
@@ -72,12 +75,12 @@ export default function VerifyEmail() {
         console.error('Error verifying email:', err);
         if (err instanceof Error) {
           if (err.message.includes('expired')) {
-            setError('Verification link has expired. Please request a new one.');
+            setError(t('auth.verifyEmail.errors.expired'));
           } else {
-            setError(`Please try logging in with your email and password`);
+            setError(t('auth.verifyEmail.errors.generic'));
           }
         } else {
-          setError('Please try logging in with your email and password');
+          setError(t('auth.verifyEmail.errors.generic'));
         }
       } finally {
         setVerifying(false);
@@ -85,7 +88,7 @@ export default function VerifyEmail() {
     };
 
     verifyEmail();
-  }, [router, searchParams, status]);
+  }, [router, params, status, t]);
 
   return (
     <>
@@ -96,24 +99,24 @@ export default function VerifyEmail() {
             {status === 'check-email' ? (
               <>
                 <Typography variant="h6" color="primary" gutterBottom>
-                  Check Your Email
+                  {t('auth.verifyEmail.title')}
                 </Typography>
                 <Typography>
-                  We&apos;ve sent you an email with a verification link. Please check your inbox and click the link to verify your email address.
+                  {t('auth.verifyEmail.description')}
                 </Typography>
                 <Typography sx={{ mt: 2 }} color="text.secondary">
-                  If you don&apos;t see the email, please check your spam folder.
+                  {t('auth.verifyEmail.spamNote')}
                 </Typography>
               </>
             ) : verifying ? (
               <>
                 <CircularProgress sx={{ mb: 2 }} />
-                <Typography>Verifying your email...</Typography>
+                <Typography>{t('auth.verifyEmail.verifying')}</Typography>
               </>
             ) : error ? (
               <>
                 <Typography variant="h6" color="error" gutterBottom>
-                  Verification Status
+                  {t('auth.verifyEmail.status')}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
                   {error}
@@ -121,18 +124,18 @@ export default function VerifyEmail() {
                 <Button
                   variant="contained"
                   color="primary"
-                  onClick={() => router.push('/auth/login')}
+                  onClick={() => router.push(t('auth.routes.login'))}
                 >
-                  Go to Login
+                  {t('auth.verifyEmail.goToLogin')}
                 </Button>
               </>
             ) : (
               <>
                 <Typography variant="h6" color="primary" gutterBottom>
-                  Email Verified Successfully!
+                  {t('auth.verifyEmail.success')}
                 </Typography>
                 <Typography>
-                  Redirecting you to the home page...
+                  {t('auth.verifyEmail.redirecting')}
                 </Typography>
               </>
             )}

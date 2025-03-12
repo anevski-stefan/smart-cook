@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Container, Paper, Typography, TextField, Button, Box, Alert } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import Navbar from '@/components/Navbar';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { signUp } = useAuth();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -21,12 +23,12 @@ export default function RegisterPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('auth.register.errors.passwordMismatch'));
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+      setError(t('auth.register.errors.passwordTooShort'));
       return;
     }
 
@@ -38,16 +40,16 @@ export default function RegisterPage() {
     } catch (err) {
       if (err instanceof Error) {
         if (err.message === 'Email already registered') {
-          setError('This email is already registered. Please try logging in instead.');
+          setError(t('auth.register.errors.emailRegistered'));
         } else if (err.message.includes('Invalid email')) {
-          setError('Please enter a valid email address.');
+          setError(t('auth.register.errors.invalidEmail'));
         } else if (err.message.includes('password')) {
-          setError('Password must be at least 6 characters long and contain both letters and numbers.');
+          setError(t('auth.register.errors.invalidPassword'));
         } else {
-          setError(err.message);
+          setError(t('auth.register.errors.generic'));
         }
       } else {
-        setError('Failed to create an account. Please try again.');
+        setError(t('auth.register.errors.generic'));
       }
       console.error('Registration error:', err);
     } finally {
@@ -61,7 +63,7 @@ export default function RegisterPage() {
       <Container maxWidth="sm" sx={{ mt: 4 }}>
         <Paper sx={{ p: 4 }} elevation={3}>
           <Typography variant="h4" component="h1" gutterBottom align="center">
-            Create Account
+            {t('auth.register.title')}
           </Typography>
 
           {error && (
@@ -72,7 +74,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit}>
             <TextField
-              label="Email"
+              label={t('common.email')}
               type="email"
               fullWidth
               margin="normal"
@@ -81,17 +83,17 @@ export default function RegisterPage() {
               required
             />
             <TextField
-              label="Password"
+              label={t('common.password')}
               type="password"
               fullWidth
               margin="normal"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              helperText="Password must be at least 6 characters long"
+              helperText={t('auth.register.passwordHelperText')}
             />
             <TextField
-              label="Confirm Password"
+              label={t('common.password')}
               type="password"
               fullWidth
               margin="normal"
@@ -108,15 +110,15 @@ export default function RegisterPage() {
               sx={{ mt: 3 }}
               disabled={loading}
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? t('auth.register.creatingAccount') : t('auth.register.createButton')}
             </Button>
           </form>
 
           <Box sx={{ mt: 3, textAlign: 'center' }}>
             <Typography variant="body2" color="text.secondary">
-              Already have an account?{' '}
-              <Link href="/auth/login" style={{ color: 'inherit', textDecoration: 'underline' }}>
-                Sign in
+              {t('auth.register.alreadyHaveAccount')}{' '}
+              <Link href={t('auth.routes.login')} style={{ color: 'inherit', textDecoration: 'underline' }}>
+                {t('auth.signInButton')}
               </Link>
             </Typography>
           </Box>

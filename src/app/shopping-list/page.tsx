@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Typography,
@@ -21,6 +21,8 @@ import {
   TextField,
   useTheme,
   useMediaQuery,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -28,9 +30,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/utils/supabase-client';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ShoppingListItem {
-  id: string;  // Change to string since Supabase uses UUID
+  id: string;
   user_id: string;
   name: string;
   amount: number;
@@ -40,39 +43,43 @@ interface ShoppingListItem {
 
 export default function ShoppingListPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [items, setItems] = useState<ShoppingListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [newItem, setNewItem] = useState({
     name: '',
     amount: '',
     unit: '',
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchShoppingList();
-    }
-  }, [user]);
-
-  const fetchShoppingList = async () => {
+  const fetchShoppingList = useCallback(async () => {
+    if (!user?.id) return;
+    
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('shopping_list')
         .select('*')
-        .eq('user_id', user?.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
       setItems(data || []);
     } catch (error) {
       console.error('Error fetching shopping list:', error);
+      // Don't set error message during initial load to avoid infinite loop
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]); // Remove t from dependencies since we're not using it in fetchShoppingList anymore
+
+  useEffect(() => {
+    fetchShoppingList();
+  }, [fetchShoppingList]);
 
   const handleToggleCheck = async (itemId: string) => {
     const targetItem = items.find((item) => item.id === itemId);
@@ -90,8 +97,10 @@ export default function ShoppingListPage() {
         .eq('id', itemId);
 
       if (error) throw error;
+      setMessage({ type: 'success', text: t('shoppingList.updateSuccess') });
     } catch (error) {
       console.error('Error updating item:', error);
+      setMessage({ type: 'error', text: t('shoppingList.updateError') });
     }
   };
 
@@ -105,8 +114,10 @@ export default function ShoppingListPage() {
       if (error) throw error;
 
       setItems(items.filter((item) => item.id !== itemId));
+      setMessage({ type: 'success', text: t('shoppingList.deleteSuccess') });
     } catch (error) {
       console.error('Error deleting item:', error);
+      setMessage({ type: 'error', text: t('shoppingList.deleteError') });
     }
   };
 
@@ -135,8 +146,10 @@ export default function ShoppingListPage() {
       setItems([...items, data as ShoppingListItem]);
       setOpenDialog(false);
       setNewItem({ name: '', amount: '', unit: '' });
+      setMessage({ type: 'success', text: t('shoppingList.addSuccess') });
     } catch (error) {
       console.error('Error adding item:', error);
+      setMessage({ type: 'error', text: t('shoppingList.addError') });
     }
   };
 
@@ -152,9 +165,15 @@ export default function ShoppingListPage() {
       if (error) throw error;
 
       setItems(items.filter((item) => !item.checked));
+      setMessage({ type: 'success', text: t('shoppingList.deleteSuccess') });
     } catch (error) {
       console.error('Error clearing checked items:', error);
+      setMessage({ type: 'error', text: t('shoppingList.deleteError') });
     }
+  };
+
+  const handleCloseMessage = () => {
+    setMessage(null);
   };
 
   return (
@@ -177,7 +196,7 @@ export default function ShoppingListPage() {
               mb: { xs: 1, sm: 0 }
             }}
           >
-            Shopping List
+            {t('navigation.shoppingList')}
           </Typography>
           <Box 
             sx={{ 
@@ -193,7 +212,7 @@ export default function ShoppingListPage() {
               startIcon={<AddIcon />}
               fullWidth={isMobile}
             >
-              Add Item
+              {t('shoppingList.addItem')}
             </Button>
             <Button
               variant="outlined"
@@ -202,7 +221,7 @@ export default function ShoppingListPage() {
               disabled={!items.some((item) => item.checked)}
               fullWidth={isMobile}
             >
-              Clear Checked
+              {t('shoppingList.clearChecked')}
             </Button>
           </Box>
         </Box>
@@ -214,7 +233,7 @@ export default function ShoppingListPage() {
         ) : items.length === 0 ? (
           <Paper sx={{ p: { xs: 2, sm: 3 } }}>
             <Typography color="text.secondary" align="center">
-              Your shopping list is empty.
+              {t('shoppingList.empty')}
             </Typography>
           </Paper>
         ) : (
@@ -271,7 +290,7 @@ export default function ShoppingListPage() {
                     <ListItemSecondaryAction>
                       <IconButton
                         edge="end"
-                        aria-label="delete"
+                        aria-label={t('common.delete')}
                         onClick={() => handleDeleteItem(item.id)}
                         sx={{ ml: { xs: 0, sm: 1 } }}
                       >
@@ -291,25 +310,25 @@ export default function ShoppingListPage() {
           fullWidth
           maxWidth="sm"
         >
-          <DialogTitle>Add Item to Shopping List</DialogTitle>
+          <DialogTitle>{t('shoppingList.addItemTitle')}</DialogTitle>
           <DialogContent>
             <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <TextField
                 autoFocus
-                label="Item Name"
+                label={t('shoppingList.itemName')}
                 fullWidth
                 value={newItem.name}
                 onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
               />
               <TextField
-                label="Amount"
+                label={t('shoppingList.amount')}
                 type="number"
                 fullWidth
                 value={newItem.amount}
                 onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })}
               />
               <TextField
-                label="Unit"
+                label={t('shoppingList.unit')}
                 fullWidth
                 value={newItem.unit}
                 onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
@@ -317,16 +336,29 @@ export default function ShoppingListPage() {
             </Box>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3 }}>
-            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button onClick={() => setOpenDialog(false)}>{t('common.cancel')}</Button>
             <Button 
               onClick={handleAddItem} 
               variant="contained"
               disabled={!newItem.name || !newItem.amount || !newItem.unit}
             >
-              Add
+              {t('shoppingList.addToList')}
             </Button>
           </DialogActions>
         </Dialog>
+
+        {message && (
+          <Snackbar
+            open={true}
+            autoHideDuration={6000}
+            onClose={handleCloseMessage}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          >
+            <Alert onClose={handleCloseMessage} severity={message.type}>
+              {message.text}
+            </Alert>
+          </Snackbar>
+        )}
       </Container>
     </ProtectedRoute>
   );

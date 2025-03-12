@@ -14,12 +14,14 @@ import {
   Alert,
 } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/utils/supabase-client';
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [formData, setFormData] = useState({
@@ -51,13 +53,13 @@ export default function ProfilePage() {
 
       setMessage({
         type: 'success',
-        text: 'Profile updated successfully!',
+        text: t('profile.updateSuccess'),
       });
     } catch (error) {
       console.error('Error updating profile:', error);
       setMessage({
         type: 'error',
-        text: 'Failed to update profile. Please try again.',
+        text: t('profile.updateError'),
       });
     } finally {
       setLoading(false);
@@ -85,14 +87,14 @@ export default function ProfilePage() {
 
               <Grid item xs={12}>
                 <Typography variant="h4" component="h1" gutterBottom align="center">
-                  Profile Settings
+                  {t('profile.settings')}
                 </Typography>
               </Grid>
 
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Full Name"
+                  label={t('profile.fullName')}
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleInputChange}
@@ -103,18 +105,18 @@ export default function ProfilePage() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
-                  label="Avatar URL"
+                  label={t('profile.avatarUrl')}
                   name="avatarUrl"
                   value={formData.avatarUrl}
                   onChange={handleInputChange}
                   disabled={loading}
-                  helperText="Enter a URL for your profile picture"
+                  helperText={t('profile.avatarHelp')}
                 />
               </Grid>
 
               <Grid item xs={12}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Email: {user?.email}
+                  {t('profile.email')}: {user?.email}
                 </Typography>
               </Grid>
 
@@ -125,7 +127,7 @@ export default function ProfilePage() {
                   fullWidth
                   disabled={loading}
                 >
-                  {loading ? 'Updating...' : 'Update Profile'}
+                  {loading ? t('profile.updating') : t('profile.updateProfile')}
                 </Button>
               </Grid>
             </Grid>

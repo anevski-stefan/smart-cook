@@ -24,12 +24,21 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSelector } from './LanguageSelector';
 
 type NavigationPage = 'search' | 'scan';
+type SettingsKey = 'profile' | 'saved-recipes' | 'shopping-list' | 'ingredients' | 'sign-out';
+type SettingsLabel = 'navigation.profile' | 'navigation.savedRecipes' | 'navigation.shoppingList' | 'recipe.ingredients' | 'common.signOut';
+
+interface SettingsItem {
+  key: SettingsKey;
+  label: SettingsLabel;
+}
+
 const pages: NavigationPage[] = ['search', 'scan'];
-const settings = [
-  { key: 'saved-recipes', label: 'navigation.savedRecipes' as const },
-  { key: 'shopping-list', label: 'navigation.shoppingList' as const },
-  { key: 'ingredients', label: 'recipe.ingredients' as const },
-  { key: 'sign-out', label: 'common.signOut' as const }
+const settings: SettingsItem[] = [
+  { key: 'profile', label: 'navigation.profile' },
+  { key: 'saved-recipes', label: 'navigation.savedRecipes' },
+  { key: 'shopping-list', label: 'navigation.shoppingList' },
+  { key: 'ingredients', label: 'recipe.ingredients' },
+  { key: 'sign-out', label: 'common.signOut' }
 ];
 
 export default function Navbar() {
@@ -171,7 +180,7 @@ export default function Navbar() {
               <>
                 <Tooltip title="Open settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar />
+                    <Avatar src={user?.user_metadata?.avatar_url} />
                   </IconButton>
                 </Tooltip>
                 <Menu

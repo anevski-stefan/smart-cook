@@ -30,13 +30,13 @@ import {
   clearScannedIngredients, 
   setLoading, 
   setError,
-  addUserIngredient,
   deleteScannedIngredient,
 } from '@/store/slices/ingredientSlice';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/utils/supabase-client';
 import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ScannedIngredient {
   id: string;
@@ -67,10 +67,11 @@ const DEFAULT_UNITS = [
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
-export default function ScanPage() {
+const ScanPage = () => {
+  const { t } = useTranslation();
+  const dispatch = useDispatch();
   const { user } = useAuth();
   const router = useRouter();
-  const dispatch = useDispatch();
   const { scannedIngredients, loading, error } = useSelector((state: RootState) => state.ingredients);
   const [useNativeCamera, setUseNativeCamera] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
@@ -86,7 +87,13 @@ export default function ScanPage() {
 
   useEffect(() => {
     if (!user) {
-      router.push('/auth/login?redirect=/scan');
+      // Show a dialog or redirect to login/register
+      const registerPath = t('auth.routes.register');
+      const loginPath = t('auth.routes.login');
+      const currentPath = '/scan';
+      
+      // Redirect to login with register path as fallback
+      router.push(`${loginPath}?redirect=${encodeURIComponent(currentPath)}&register=${encodeURIComponent(registerPath)}`);
       return;
     }
 
@@ -99,45 +106,38 @@ export default function ScanPage() {
       setUseNativeCamera(true);
       dispatch(setError(''));
     }
-  }, [user, router, dispatch]);
+  }, [user, router, dispatch, t]);
 
-  const handleSaveIngredient = async () => {
-    if (!dialogState.ingredient || !user) return;
+  const saveIngredient = async (ingredient: ScannedIngredient) => {
+    if (!user) return;
 
+    const { error: dbError } = await supabase
+      .from('user_ingredients')
+      .insert({
+        user_id: user.id,
+        name: ingredient.name,
+        quantity: ingredient.quantity,
+        unit: ingredient.unit,
+      });
+
+    if (dbError) throw dbError;
+
+    dispatch(deleteScannedIngredient(ingredient.id));
+  };
+
+  const handleSaveIngredient = async (ingredient: ScannedIngredient) => {
     try {
-      const { data, error: dbError } = await supabase
-        .from('user_ingredients')
-        .insert({
-          user_id: user.id,
-          name: dialogState.ingredient.name,
-          quantity: parseFloat(dialogState.amount),
-          unit: dialogState.unit,
-        })
-        .select()
-        .single();
-
-      if (dbError) throw dbError;
-
-      if (data) {
-        dispatch(addUserIngredient(data));
-        // Remove the saved ingredient from scanned ingredients
-        const updatedIngredients = scannedIngredients.filter(
-          ing => ing.id !== dialogState.ingredient?.id
-        );
-        dispatch({ type: 'ingredients/setScannedIngredients', payload: updatedIngredients });
-        setNotification({
-          message: `${dialogState.ingredient.name} added to your ingredients!`,
-          severity: 'success'
-        });
-      }
-    } catch (err) {
-      console.error('Error saving ingredient:', err);
+      await saveIngredient(ingredient);
       setNotification({
-        message: 'Failed to save ingredient',
+        message: `${ingredient.name} ${t('scan.ingredientAdded')}`,
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error saving ingredient:', error);
+      setNotification({
+        message: t('scan.saveError'),
         severity: 'error'
       });
-    } finally {
-      setDialogState(prev => ({ ...prev, open: false }));
     }
   };
 
@@ -205,7 +205,7 @@ export default function ScanPage() {
     if (!file) return;
 
     if (file.size > MAX_IMAGE_SIZE) {
-      dispatch(setError('Image size is too large. Please use an image under 5MB.'));
+      dispatch(setError(t('scan.imageSizeError')));
       return;
     }
 
@@ -258,10 +258,10 @@ export default function ScanPage() {
           }
         });
       } else {
-        throw new Error('No ingredients detected');
+        throw new Error(t('scan.noIngredientsDetected'));
       }
     } catch (error) {
-      dispatch(setError(error instanceof Error ? error.message : 'Failed to process image'));
+      dispatch(setError(error instanceof Error ? error.message : t('scan.processingError')));
       console.error('Error processing image:', error);
     } finally {
       dispatch(setLoading(false));
@@ -336,6 +336,10 @@ export default function ScanPage() {
     }
   }, [dispatch, useNativeCamera, scannedIngredients]);
 
+  const handleClearAll = () => {
+    dispatch(clearScannedIngredients());
+  };
+
   if (!user) {
     return null;
   }
@@ -345,7 +349,7 @@ export default function ScanPage() {
       <Navbar />
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Scan Ingredients
+          {t('scan.title')}
         </Typography>
 
         <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -373,7 +377,7 @@ export default function ScanPage() {
                   }}
                 >
                   <Typography color="textSecondary">
-                    Click below to take a photo
+                    {t('scan.takePhotoPrompt')}
                   </Typography>
                 </Box>
               )}
@@ -394,7 +398,7 @@ export default function ScanPage() {
               onClick={captureImage}
               disabled={!useNativeCamera && (!isCameraReady || loading)}
             >
-              {loading ? 'Processing...' : 'Take Photo'}
+              {loading ? t('common.loading') : t('scan.takePhoto')}
             </Button>
           </Box>
 
@@ -424,14 +428,14 @@ export default function ScanPage() {
                     fontWeight: 600
                   }}
                 >
-                  Scanned Ingredients
+                  {t('scan.scannedIngredients')}
                 </Typography>
                 <Button
                   variant="outlined"
                   color="error"
                   size="small"
                   startIcon={<Delete />}
-                  onClick={() => dispatch(clearScannedIngredients())}
+                  onClick={handleClearAll}
                   disabled={scannedIngredients.length === 0}
                   sx={{
                     borderRadius: 6,
@@ -441,7 +445,7 @@ export default function ScanPage() {
                     }
                   }}
                 >
-                  Clear All
+                  {t('scan.clearAll')}
                 </Button>
               </Box>
 
@@ -501,14 +505,14 @@ export default function ScanPage() {
                           variant="body2"
                           color="text.secondary"
                         >
-                          {`${ingredient.quantity || 1} ${ingredient.unit || 'piece'}`}
+                          {ingredient.quantity || 1} {ingredient.unit}
                         </Typography>
                       }
                     />
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <IconButton
                         edge="end"
-                        aria-label="delete"
+                        aria-label={t('common.delete')}
                         onClick={() => dispatch(deleteScannedIngredient(ingredient.id))}
                         sx={{
                           color: 'error.main',
@@ -521,7 +525,7 @@ export default function ScanPage() {
                       </IconButton>
                       <IconButton
                         edge="end"
-                        aria-label="save"
+                        aria-label={t('common.save')}
                         onClick={() => setDialogState({
                           open: true,
                           ingredient,
@@ -567,13 +571,13 @@ export default function ScanPage() {
                         mb: 1
                       }}
                     >
-                      No ingredients scanned
+                      {t('scan.noIngredients')}
                     </Typography>
                     <Typography
                       variant="body2"
                       color="text.secondary"
                     >
-                      Use the camera to scan ingredients
+                      {t('scan.useCamera')}
                     </Typography>
                   </Box>
                 )}
@@ -583,14 +587,14 @@ export default function ScanPage() {
         </Box>
 
         <Dialog open={dialogState.open} onClose={() => setDialogState(prev => ({ ...prev, open: false }))}>
-          <DialogTitle>Save Ingredient</DialogTitle>
+          <DialogTitle>{t('scan.saveIngredient')}</DialogTitle>
           <DialogContent>
             <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Typography variant="subtitle1">
                 {dialogState.ingredient?.name}
               </Typography>
               <TextField
-                label="Amount"
+                label={t('shoppingList.amount')}
                 type="number"
                 value={dialogState.amount}
                 onChange={(e) => setDialogState(prev => ({ ...prev, amount: e.target.value }))}
@@ -598,7 +602,7 @@ export default function ScanPage() {
               />
               <TextField
                 select
-                label="Unit"
+                label={t('shoppingList.unit')}
                 value={dialogState.unit}
                 onChange={(e) => setDialogState(prev => ({ ...prev, unit: e.target.value }))}
                 fullWidth
@@ -613,10 +617,10 @@ export default function ScanPage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setDialogState(prev => ({ ...prev, open: false }))}>
-              Cancel
+              {t('common.cancel')}
             </Button>
-            <Button onClick={handleSaveIngredient} variant="contained" color="primary">
-              Save
+            <Button onClick={() => handleSaveIngredient(dialogState.ingredient!)} variant="contained" color="primary">
+              {t('common.save')}
             </Button>
           </DialogActions>
         </Dialog>
@@ -636,4 +640,6 @@ export default function ScanPage() {
       </Container>
     </>
   );
-} 
+};
+
+export default ScanPage; 

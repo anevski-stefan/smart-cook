@@ -8,9 +8,11 @@ import RecipeCard from '@/components/RecipeCard';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import type { Recipe } from '@/types/ingredient';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function SavedRecipesPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,21 +31,21 @@ export default function SavedRecipesPage() {
         setRecipes(recipes);
       } catch (error) {
         console.error('Error fetching saved recipes:', error);
-        setError('Failed to load saved recipes');
+        setError(t('common.error'));
       } finally {
         setLoading(false);
       }
     };
 
     fetchSavedRecipes();
-  }, []);
+  }, [t]);
 
   return (
     <ProtectedRoute>
       <Navbar />
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Saved Recipes
+          {t('navigation.savedRecipes')}
         </Typography>
 
         {loading ? (
@@ -54,7 +56,7 @@ export default function SavedRecipesPage() {
           <Typography color="error">{error}</Typography>
         ) : recipes.length === 0 ? (
           <Typography color="text.secondary">
-            You haven&apos;t saved any recipes yet.
+            {t('recipe.noRecipesFound')}
           </Typography>
         ) : (
           <Grid container spacing={3}>

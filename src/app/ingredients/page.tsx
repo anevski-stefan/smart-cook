@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Container,
   Typography,
@@ -23,6 +23,7 @@ import { supabase } from '@/utils/supabase-client';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface UserIngredient {
   id: string;
@@ -33,30 +34,48 @@ interface UserIngredient {
   created_at: string;
 }
 
+const UNIT_KEYS = {
+  piece: ['ingredients.units.piece', 'ingredients.units.pieces'],
+  gram: ['ingredients.units.gram', 'ingredients.units.grams'],
+  kilogram: ['ingredients.units.kilogram', 'ingredients.units.kilograms'],
+  milliliter: ['ingredients.units.milliliter', 'ingredients.units.milliliters'],
+  liter: ['ingredients.units.liter', 'ingredients.units.liters'],
+  tablespoon: ['ingredients.units.tablespoon', 'ingredients.units.tablespoons'],
+  teaspoon: ['ingredients.units.teaspoon', 'ingredients.units.teaspoons'],
+  cup: ['ingredients.units.cup', 'ingredients.units.cups'],
+  pound: ['ingredients.units.pound', 'ingredients.units.pounds'],
+  ounce: ['ingredients.units.ounce', 'ingredients.units.ounces'],
+} as const;
+
 export default function IngredientsPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { t } = useTranslation();
   const [ingredients, setIngredients] = useState<UserIngredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchIngredients();
-    }
-  }, [user]);
+  // Memoize the error messages
+  const errorMessages = useMemo(() => ({
+    loadError: t('ingredients.loadError'),
+    deleteError: t('ingredients.deleteError')
+  }), [t]);
 
-  const fetchIngredients = async () => {
+  const fetchIngredients = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       const { data, error } = await supabase
         .from('user_ingredients')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Group ingredients with the same name and unit
       const groupedIngredients = (data || []).reduce((acc: UserIngredient[], curr) => {
         const existingIngredient = acc.find(
           item => 
@@ -65,27 +84,29 @@ export default function IngredientsPage() {
         );
 
         if (existingIngredient) {
-          // Update existing ingredient quantity
           existingIngredient.quantity += curr.quantity;
-          // Keep the most recent created_at date
           existingIngredient.created_at = new Date(existingIngredient.created_at) > new Date(curr.created_at) 
             ? existingIngredient.created_at 
             : curr.created_at;
           return acc;
         } else {
-          // Add new ingredient
           return [...acc, curr];
         }
       }, []);
 
       setIngredients(groupedIngredients);
+      setError(null);
     } catch (err) {
       console.error('Error fetching ingredients:', err);
-      setError('Failed to load ingredients');
+      setError(errorMessages.loadError);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, errorMessages]);
+
+  useEffect(() => {
+    fetchIngredients();
+  }, [fetchIngredients]);
 
   const deleteIngredient = async (ingredientId: string) => {
     try {
@@ -96,13 +117,21 @@ export default function IngredientsPage() {
 
       if (error) throw error;
 
-      // Refetch ingredients to ensure proper grouping after deletion
-      fetchIngredients();
+      await fetchIngredients();
     } catch (err) {
       console.error('Error deleting ingredient:', err);
-      setError('Failed to delete ingredient');
+      setError(errorMessages.deleteError);
     }
   };
+
+  const getTranslatedUnit = useCallback((unit: string, quantity: number) => {
+    const normalizedUnit = unit.toLowerCase() as keyof typeof UNIT_KEYS;
+    if (normalizedUnit in UNIT_KEYS) {
+      const [singular, plural] = UNIT_KEYS[normalizedUnit];
+      return t(quantity === 1 ? singular : plural);
+    }
+    return unit; // Fallback to original unit if no translation found
+  }, [t]);
 
   return (
     <>
@@ -126,14 +155,14 @@ export default function IngredientsPage() {
                 mb: 1
               }}
             >
-              My Ingredients
+              {t('ingredients.title')}
             </Typography>
             <Typography 
               variant="body1" 
               color="text.secondary"
               sx={{ display: { xs: 'none', sm: 'block' } }}
             >
-              Manage your pantry ingredients and track what you have on hand
+              {t('ingredients.subtitle')}
             </Typography>
           </Box>
           <Button
@@ -144,7 +173,7 @@ export default function IngredientsPage() {
               minWidth: { xs: '100%', sm: 'auto' }
             }}
           >
-            Add Ingredients
+            {t('ingredients.addIngredients')}
           </Button>
         </Box>
 
@@ -167,10 +196,10 @@ export default function IngredientsPage() {
           >
             <KitchenIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" gutterBottom>
-              Your pantry is empty
+              {t('ingredients.emptyTitle')}
             </Typography>
             <Typography color="text.secondary" paragraph>
-              Start by scanning ingredients to add them to your list
+              {t('ingredients.emptyDescription')}
             </Typography>
             <Button
               variant="outlined"
@@ -178,7 +207,7 @@ export default function IngredientsPage() {
               onClick={() => router.push('/scan')}
               sx={{ mt: 2 }}
             >
-              Scan Ingredients
+              {t('ingredients.scanIngredients')}
             </Button>
           </Paper>
         ) : (
@@ -221,7 +250,7 @@ export default function IngredientsPage() {
                               fontSize: { xs: '0.875rem', sm: '0.95rem' }
                             }}
                           >
-                            {`${ingredient.quantity} ${ingredient.unit}`}
+                            {ingredient.quantity} {getTranslatedUnit(ingredient.unit, ingredient.quantity)}
                           </Typography>
                         }
                       />
