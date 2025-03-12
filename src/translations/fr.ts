@@ -241,4 +241,14 @@ export const fr = {
       ounces: "onces",
     },
   },
+  footer: {
+    copyright: "© 2024 Smart Cook. Tous droits réservés.",
+    links: {
+      about: "À propos",
+      privacy: "Politique de Confidentialité",
+      terms: "Conditions d'Utilisation",
+      contact: "Contactez-nous"
+    },
+    description: "Smart Cook est votre assistant de cuisine alimenté par l'IA qui vous aide à découvrir des recettes, gérer vos ingrédients et cuisiner en toute confiance."
+  },
 } as const; 

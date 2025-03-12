@@ -240,4 +240,14 @@ export const en = {
       ounces: "ounces",
     },
   },
+  footer: {
+    copyright: "© 2024 Smart Cook. All rights reserved.",
+    links: {
+      about: "About",
+      privacy: "Privacy Policy",
+      terms: "Terms of Service",
+      contact: "Contact Us"
+    },
+    description: "Smart Cook is your AI-powered cooking companion that helps you discover recipes, manage ingredients, and cook with confidence."
+  },
 } as const; 

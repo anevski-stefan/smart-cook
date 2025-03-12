@@ -6,6 +6,7 @@ import { Container, Typography, Paper, Box, CircularProgress, Button } from '@mu
 import { supabase } from '@/utils/supabase-client';
 import { useTranslation } from '@/hooks/useTranslation';
 import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 
 export default function VerifyEmail() {
   const router = useRouter();
@@ -91,10 +92,14 @@ export default function VerifyEmail() {
   }, [router, params, status, t]);
 
   return (
-    <>
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      minHeight: '100vh'
+    }}>
       <Navbar />
-      <Container maxWidth="sm">
-        <Box sx={{ mt: 8 }}>
+      <Container maxWidth="sm" sx={{ flex: 1 }}>
+        <Box sx={{ mt: 8, mb: 8 }}>
           <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
             {status === 'check-email' ? (
               <>
@@ -142,6 +147,7 @@ export default function VerifyEmail() {
           </Paper>
         </Box>
       </Container>
-    </>
+      <Footer />
+    </Box>
   );
 } 
