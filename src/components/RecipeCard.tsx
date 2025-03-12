@@ -7,55 +7,45 @@ import {
   Chip,
   CardActionArea,
 } from '@mui/material';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import GroupIcon from '@mui/icons-material/Group';
-import RestaurantIcon from '@mui/icons-material/Restaurant';
-import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
-import Link from 'next/link';
+import { AccessTime, SignalCellularAlt } from '@mui/icons-material';
 import type { Recipe } from '@/types/ingredient';
 
-interface RecipeCardProps {
+export interface RecipeCardProps {
   recipe: Recipe;
+  onClick?: () => void;
 }
 
-export default function RecipeCard({ recipe }: RecipeCardProps) {
+export default function RecipeCard({
+  recipe,
+  onClick
+}: RecipeCardProps) {
+  const getComplexityColor = (level: string) => {
+    switch (level) {
+      case 'Easy':
+        return 'success';
+      case 'Medium':
+        return 'warning';
+      case 'Hard':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
   return (
-    <Card elevation={2}>
-      <CardActionArea component={Link} href={`/recipes/${recipe.id}`}>
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardActionArea onClick={onClick} sx={{ flex: 1 }}>
         <CardMedia
           component="img"
-          height="200"
+          height="160"
           image={recipe.image}
           alt={recipe.title}
+          sx={{ objectFit: 'cover' }}
         />
         <CardContent>
-          <Typography variant="h6" component="h2" gutterBottom noWrap>
+          <Typography gutterBottom variant="h6" component="div" noWrap>
             {recipe.title}
           </Typography>
-
-          <Box display="flex" gap={1} flexWrap="wrap" mb={2}>
-            <Chip
-              size="small"
-              icon={<AccessTimeIcon />}
-              label={`${recipe.readyInMinutes} min`}
-            />
-            <Chip
-              size="small"
-              icon={<GroupIcon />}
-              label={`${recipe.servings} servings`}
-            />
-            <Chip
-              size="small"
-              icon={<RestaurantIcon />}
-              label={recipe.cuisine}
-            />
-            <Chip
-              size="small"
-              icon={<SignalCellularAltIcon />}
-              label={recipe.difficulty}
-            />
-          </Box>
-
           <Typography
             variant="body2"
             color="text.secondary"
@@ -63,12 +53,28 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               display: '-webkit-box',
-              WebkitLineClamp: 3,
+              WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
+              mb: 2
             }}
           >
-            {recipe.description.replace(/<[^>]*>/g, '')}
+            {recipe.description}
           </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Chip
+              icon={<AccessTime fontSize="small" />}
+              label={`${recipe.readyInMinutes} min`}
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              icon={<SignalCellularAlt fontSize="small" />}
+              label={recipe.difficulty}
+              size="small"
+              color={getComplexityColor(recipe.difficulty)}
+              variant="outlined"
+            />
+          </Box>
         </CardContent>
       </CardActionArea>
     </Card>
