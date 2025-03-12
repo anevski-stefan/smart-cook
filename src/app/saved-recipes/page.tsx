@@ -7,8 +7,10 @@ import Navbar from '@/components/Navbar';
 import RecipeCard from '@/components/RecipeCard';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import type { Recipe } from '@/types/ingredient';
+import { useRouter } from 'next/navigation';
 
 export default function SavedRecipesPage() {
+  const router = useRouter();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,10 @@ export default function SavedRecipesPage() {
           <Grid container spacing={3}>
             {recipes.map((recipe) => (
               <Grid item key={recipe.id} xs={12} sm={6} md={4}>
-                <RecipeCard recipe={recipe} />
+                <RecipeCard 
+                  recipe={recipe}
+                  onClick={() => router.push(`/recipes/${recipe.id}`)}
+                />
               </Grid>
             ))}
           </Grid>

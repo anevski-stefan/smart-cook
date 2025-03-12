@@ -173,34 +173,27 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '12');
     const searchQuery = searchParams.get('search')?.trim();
     const complexity = searchParams.get('complexity')?.split(',').filter(Boolean);
+    const minTime = parseInt(searchParams.get('minTime') || '0');
+    const maxTime = parseInt(searchParams.get('maxTime') || '180');
     
-    console.log('[API] Request params:', { page, limit, searchQuery, complexity });
+    console.log('[API] Request params:', { page, limit, searchQuery, complexity, minTime, maxTime });
     
+    let recipes: Recipe[] = [];
+
     // If there's a search query, use the search endpoint
     if (searchQuery) {
       console.log('[API] Making search request to TheMealDB:', searchQuery);
       const response = await fetch(`${MEALDB_BASE_URL}/search.php?s=${encodeURIComponent(searchQuery)}`);
       
-      console.log('[API] TheMealDB search response:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
-      
       if (!response.ok) {
-        console.error('[API] TheMealDB search error:', response.status, response.statusText);
         throw new Error(`MealDB API error: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('[API] TheMealDB search results:', {
-        found: data.meals ? data.meals.length : 0,
-        meals: data.meals
-      });
       const meals = data.meals || [];
-
-      // Transform meals to recipes first to apply complexity filtering
-      let recipes: Recipe[] = meals.map((meal: MealDBRecipe) => {
+      
+      // Transform meals to recipes and apply filters
+      recipes = meals.map((meal: MealDBRecipe) => {
         const ingredients = extractIngredientsFromMealDB(meal);
         const cookingTime = getCookingTime(meal.strCategory, meal.strInstructions);
         const ingredientNames = Array.from({ length: 20 }, (_, i) => meal[`strIngredient${i + 1}` as keyof MealDBRecipe])
@@ -224,6 +217,99 @@ export async function GET(request: Request) {
           instructions: extractInstructionsFromMealDB(meal.strInstructions, meal.idMeal),
         };
       });
+    } else {
+      // If no search query, fetch recipes by category
+      console.log('[API] Fetching recipes by categories');
+      const seen = new Set<string>();
+      const categories = Object.keys(COOKING_TIMES);
+      
+      for (const category of categories) {
+        if (recipes.length >= limit) break;
+        
+        try {
+          console.log(`[API] Fetching recipes for category: ${category}`);
+          const response = await fetch(`${MEALDB_BASE_URL}/filter.php?c=${encodeURIComponent(category)}`);
+          
+          if (response.status === 429) {
+            console.log('[API] Rate limited by TheMealDB, waiting...');
+            await delay(2000);
+            continue;
+          }
+          
+          if (!response.ok || !response.body) continue;
+          
+          const data = await response.json();
+          if (!data.meals) continue;
+          
+          // Shuffle the meals array to get random recipes from this category
+          const meals = data.meals.sort(() => Math.random() - 0.5);
+          
+          // Process meals from this category
+          for (const mealPreview of meals) {
+            if (recipes.length >= limit) break;
+            if (seen.has(mealPreview.idMeal)) continue;
+            
+            // Fetch full recipe details
+            const detailResponse = await fetch(`${MEALDB_BASE_URL}/lookup.php?i=${mealPreview.idMeal}`);
+            if (!detailResponse.ok) continue;
+            
+            const detailData = await detailResponse.json();
+            const meal: MealDBRecipe = detailData.meals?.[0];
+            if (!meal) continue;
+            
+            seen.add(meal.idMeal);
+            
+            const ingredients = extractIngredientsFromMealDB(meal);
+            const cookingTime = getCookingTime(meal.strCategory, meal.strInstructions);
+            const ingredientNames = Array.from({ length: 20 }, (_, i) => meal[`strIngredient${i + 1}` as keyof MealDBRecipe])
+              .filter((name): name is string => !!name);
+            
+            const nutritionalInfo = estimateNutritionalInfo(ingredientNames);
+            const difficulty = getDifficulty(cookingTime, ingredients.length);
+            
+            // Skip if doesn't match filters
+            if (cookingTime < minTime || cookingTime > maxTime) continue;
+            if (complexity && complexity.length > 0 && !complexity.includes(difficulty)) continue;
+            
+            recipes.push({
+              id: meal.idMeal,
+              title: meal.strMeal,
+              image: meal.strMealThumb,
+              description: `${meal.strCategory} dish from ${meal.strArea} cuisine. ${meal.strTags ? `Tags: ${meal.strTags}` : ''}`,
+              readyInMinutes: cookingTime,
+              servings: 4,
+              cuisine: meal.strArea || 'International',
+              difficulty,
+              summary: `${meal.strCategory} dish from ${meal.strArea} cuisine`,
+              nutritionalInfo,
+              ingredients,
+              instructions: extractInstructionsFromMealDB(meal.strInstructions, meal.idMeal),
+            });
+            
+            console.log('[API] Added recipe:', {
+              title: meal.strMeal,
+              category,
+              difficulty,
+              cookingTime,
+              ingredientCount: ingredients.length
+            });
+            
+            await delay(100);
+          }
+        } catch (error) {
+          console.error('[API] Error processing category:', category, error);
+          continue;
+        }
+      }
+    }
+
+    // Apply filters to search results
+    if (searchQuery) {
+      // Apply cooking time filter
+      recipes = recipes.filter(recipe => {
+        const time = recipe.readyInMinutes;
+        return time >= minTime && time <= maxTime;
+      });
 
       // Apply complexity filter if specified
       if (complexity && complexity.length > 0) {
@@ -231,123 +317,10 @@ export async function GET(request: Request) {
         recipes = recipes.filter(recipe => complexity.includes(recipe.difficulty));
         console.log('[API] After complexity filter:', recipes.length, 'recipes remain');
       }
-      
-      // Calculate pagination after filtering
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedRecipes = recipes.slice(startIndex, endIndex);
-
-      console.log('[API] Returning', paginatedRecipes.length, 'recipes');
-      return NextResponse.json({ 
-        results: paginatedRecipes, 
-        totalResults: recipes.length,
-        page,
-        hasMore: endIndex < recipes.length
-      });
     }
     
-    // If no search query, continue with random recipes as before
-    console.log('[API] Fetching random recipes');
-    const recipes: Recipe[] = [];
-    const seen = new Set<string>();
-    
-    // Keep fetching until we have enough recipes that match the filters
-    let attempts = 0;
-    const maxAttempts = 50; // Prevent infinite loops
-    
-    while (recipes.length < limit && attempts < maxAttempts) {
-      try {
-        attempts++;
-        // Add delay between requests to avoid rate limiting
-        if (recipes.length > 0) {
-          console.log('[API] Adding delay between requests');
-          await new Promise(resolve => setTimeout(resolve, 250));
-        }
-        
-        console.log('[API] Making random recipe request to TheMealDB (attempt', attempts, 'of', maxAttempts, ')');
-        const response = await fetch(`${MEALDB_BASE_URL}/random.php`);
-        console.log('[API] TheMealDB random response:', {
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok
-        });
-        
-        if (response.status === 429) {
-          console.log('[API] Rate limited by TheMealDB, waiting longer...');
-          await delay(2000);
-          continue;
-        }
-        
-        if (!response.ok) {
-          console.error('[API] TheMealDB random error:', response.status, response.statusText);
-          throw new Error(`MealDB API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('[API] TheMealDB random response:', data.meals ? 'Recipe found' : 'No recipe found');
-        const meal: MealDBRecipe = data.meals?.[0];
-        
-        if (!meal || seen.has(meal.idMeal)) {
-          console.log('[API] Skipping duplicate or invalid recipe');
-          continue;
-        }
-        
-        seen.add(meal.idMeal);
-        
-        const ingredients = extractIngredientsFromMealDB(meal);
-        const cookingTime = getCookingTime(meal.strCategory, meal.strInstructions);
-        const ingredientNames = Array.from({ length: 20 }, (_, i) => meal[`strIngredient${i + 1}` as keyof MealDBRecipe])
-          .filter((name): name is string => !!name);
-        
-        const nutritionalInfo = estimateNutritionalInfo(ingredientNames);
-        const difficulty = getDifficulty(cookingTime, ingredients.length);
-
-        // Skip if complexity filter is active and recipe doesn't match
-        if (complexity && complexity.length > 0 && !complexity.includes(difficulty)) {
-          console.log('[API] Skipping recipe due to complexity mismatch:', {
-            recipeComplexity: difficulty,
-            wantedComplexity: complexity
-          });
-          continue;
-        }
-        
-        recipes.push({
-          id: meal.idMeal,
-          title: meal.strMeal,
-          image: meal.strMealThumb,
-          description: `${meal.strCategory} dish from ${meal.strArea} cuisine. ${meal.strTags ? `Tags: ${meal.strTags}` : ''}`,
-          readyInMinutes: cookingTime,
-          servings: 4,
-          cuisine: meal.strArea || 'International',
-          difficulty,
-          summary: `${meal.strCategory} dish from ${meal.strArea} cuisine`,
-          nutritionalInfo,
-          ingredients,
-          instructions: extractInstructionsFromMealDB(meal.strInstructions, meal.idMeal),
-        });
-        
-        console.log('[API] Added recipe:', {
-          title: meal.strMeal,
-          difficulty,
-          cookingTime,
-          ingredientCount: ingredients.length
-        });
-        
-      } catch (error) {
-        console.error('[API] Error fetching single recipe:', {
-          name: error instanceof Error ? error.name : 'Unknown',
-          message: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          error
-        });
-        if (recipes.length === 0 && attempts >= maxAttempts) {
-          throw error;
-        }
-      }
-    }
-
+    // Handle no results
     if (recipes.length === 0) {
-      console.log('[API] No recipes found matching the complexity filter after', attempts, 'attempts');
       return NextResponse.json({ 
         results: [], 
         totalResults: 0,
@@ -356,31 +329,24 @@ export async function GET(request: Request) {
       });
     }
 
-    console.log('[API] Successfully fetched', recipes.length, 'unique recipes matching filters for page', page);
+    // Calculate pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedRecipes = recipes.slice(startIndex, endIndex);
 
-    const response = { 
-      results: recipes, 
+    console.log('[API] Returning', paginatedRecipes.length, 'recipes');
+    return NextResponse.json({ 
+      results: paginatedRecipes, 
       totalResults: recipes.length,
       page,
-      hasMore: true
-    };
-    console.log('[API] Sending response:', response);
-
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('[API] Error in main request handler:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      error
+      hasMore: endIndex < recipes.length
     });
-    
-    const errorResponse = {
+
+  } catch (error) {
+    console.error('[API] Error in main request handler:', error);
+    return NextResponse.json({
       message: error instanceof Error ? error.message : 'Failed to fetch recipes',
       details: error instanceof Error ? error.stack : undefined
-    };
-    console.log('[API] Sending error response:', errorResponse);
-    
-    return NextResponse.json(errorResponse, { status: 500 });
+    }, { status: 500 });
   }
 } 

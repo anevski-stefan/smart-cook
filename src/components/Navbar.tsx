@@ -1,338 +1,185 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  AppBar, 
-  Toolbar, 
-  Typography, 
-  Button, 
-  Box, 
-  IconButton, 
-  Menu, 
-  MenuItem, 
+import {
+  AppBar,
+  Box,
+  Toolbar,
+  IconButton,
+  Typography,
+  Menu,
+  Container,
   Avatar,
-  useTheme,
-  useMediaQuery,
-  Drawer,
-  List,
-  ListItem,
-  Divider
+  Button,
+  Tooltip,
+  MenuItem,
 } from '@mui/material';
-import { useRouter } from 'next/navigation';
-import { 
-  RestaurantMenu, 
-  AccountCircle, 
+import {
   Menu as MenuIcon,
-  Home,
-  Book,
-  CameraAlt,
-  Person,
-  BookmarkBorder,
-  Kitchen,
-  ShoppingCart,
-  Logout,
-  Close
+  Restaurant as RestaurantIcon,
 } from '@mui/icons-material';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
+import { LanguageSelector } from './LanguageSelector';
+
+type NavigationPage = 'search' | 'scan';
+const pages: NavigationPage[] = ['search', 'scan'];
+const settings = [
+  { key: 'saved-recipes', label: 'navigation.savedRecipes' as const },
+  { key: 'shopping-list', label: 'navigation.shoppingList' as const },
+  { key: 'ingredients', label: 'recipe.ingredients' as const },
+  { key: 'sign-out', label: 'common.signOut' as const }
+];
 
 export default function Navbar() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { t } = useTranslation();
+  const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
+  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
 
-  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
+  const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorElNav(event.currentTarget);
+  };
+  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorElUser(event.currentTarget);
   };
 
-  const handleClose = () => {
-    setAnchorEl(null);
+  const handleCloseNavMenu = () => {
+    setAnchorElNav(null);
   };
 
-  const handleMobileMenuToggle = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
+  const handleCloseUserMenu = () => {
+    setAnchorElUser(null);
   };
 
   const handleNavigation = (path: string) => {
     router.push(path);
-    setMobileMenuOpen(false);
+    handleCloseNavMenu();
   };
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      handleNavigation('/auth/login');
+      router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
     }
-    handleClose();
-    setMobileMenuOpen(false);
+    handleCloseUserMenu();
   };
 
-  const navigationItems = [
-    { text: 'Home', path: '/', icon: <Home /> },
-    { text: 'Recipes', path: '/recipes', icon: <Book /> },
-    ...(user ? [{ text: 'Scan Ingredients', path: '/scan', icon: <CameraAlt /> }] : []),
-  ];
-
-  const userMenuItems = user ? [
-    { text: 'Profile', path: '/profile', icon: <Person /> },
-    { text: 'Saved Recipes', path: '/saved-recipes', icon: <BookmarkBorder /> },
-    { text: 'My Ingredients', path: '/ingredients', icon: <Kitchen /> },
-    { text: 'Shopping List', path: '/shopping-list', icon: <ShoppingCart /> },
-  ] : [];
-
-  const mobileMenu = (
-    <Drawer
-      anchor="right"
-      open={mobileMenuOpen}
-      onClose={handleMobileMenuToggle}
-      sx={{
-        '& .MuiDrawer-paper': {
-          width: 280,
-          boxSizing: 'border-box',
-        },
-      }}
-    >
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center',
-        p: 2,
-        borderBottom: 1,
-        borderColor: 'divider',
-      }}>
-        <IconButton
-          onClick={handleMobileMenuToggle}
-          edge="start"
-          sx={{ mr: 1 }}
-        >
-          <Close />
-        </IconButton>
-        <Typography variant="h6">
-          Menu
-        </Typography>
-      </Box>
-
-      {user && (
-        <Box sx={{ 
-          p: 2,
-          borderBottom: 1, 
-          borderColor: 'divider',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2
-        }}>
-          {user.user_metadata?.avatar_url ? (
-            <Avatar
-              src={user.user_metadata.avatar_url}
-              alt={user.email || ''}
-              sx={{ width: 40, height: 40 }}
-            />
-          ) : (
-            <Avatar sx={{ width: 40, height: 40 }}>
-              <AccountCircle />
-            </Avatar>
-          )}
-          <Box>
-            <Typography variant="subtitle1">
-              {user.email}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Signed In
-            </Typography>
-          </Box>
-        </Box>
-      )}
-
-      <List sx={{ pt: 1 }}>
-        {navigationItems.map((item) => (
-          <ListItem 
-            key={item.text} 
-            disablePadding
+  return (
+    <AppBar position="sticky" sx={{ bgcolor: 'primary.main' }}>
+      <Container maxWidth="xl">
+        <Toolbar disableGutters>
+          <RestaurantIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1, color: 'white' }} />
+          <Typography
+            variant="h6"
+            noWrap
+            component="a"
+            href="/"
+            sx={{
+              mr: 2,
+              display: { xs: 'none', md: 'flex' },
+              fontWeight: 700,
+              color: 'white',
+              textDecoration: 'none',
+            }}
           >
-            <Button
-              fullWidth
-              onClick={() => handleNavigation(item.path)}
-              sx={{ 
-                justifyContent: 'flex-start',
-                px: 3,
-                py: 2,
-                color: 'text.primary',
-                textTransform: 'none',
-                fontSize: '0.95rem',
-                fontWeight: 500,
-                letterSpacing: 0.2,
-                '&:hover': {
-                  bgcolor: 'action.hover',
-                },
-                '& .MuiButton-startIcon': {
-                  color: 'primary.main',
-                  '& svg': { fontSize: 22 }
-                }
-              }}
-              startIcon={item.icon}
-            >
-              {item.text}
-            </Button>
-          </ListItem>
-        ))}
+            Smart Cook
+          </Typography>
 
-        {user && (
-          <>
-            <Divider sx={{ my: 1.5 }} />
-            {userMenuItems.map((item) => (
-              <ListItem 
-                key={item.text} 
-                disablePadding
-              >
-                <Button
-                  fullWidth
-                  onClick={() => handleNavigation(item.path)}
-                  sx={{ 
-                    justifyContent: 'flex-start',
-                    px: 3,
-                    py: 2,
-                    color: 'text.primary',
-                    textTransform: 'none',
-                    fontSize: '0.95rem',
-                    fontWeight: 500,
-                    letterSpacing: 0.2,
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                    },
-                    '& .MuiButton-startIcon': {
-                      color: 'text.secondary',
-                      '& svg': { fontSize: 22 }
-                    }
-                  }}
-                  startIcon={item.icon}
-                >
-                  {item.text}
-                </Button>
-              </ListItem>
-            ))}
-            <ListItem disablePadding>
+          <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
+            <IconButton
+              size="large"
+              aria-label="account of current user"
+              aria-controls="menu-appbar"
+              aria-haspopup="true"
+              onClick={handleOpenNavMenu}
+              color="inherit"
+            >
+              <MenuIcon />
+            </IconButton>
+            <Menu
+              id="menu-appbar"
+              anchorEl={anchorElNav}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'left',
+              }}
+              keepMounted
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'left',
+              }}
+              open={Boolean(anchorElNav)}
+              onClose={handleCloseNavMenu}
+              sx={{
+                display: { xs: 'block', md: 'none' },
+              }}
+            >
+              {pages.map((page) => (
+                <MenuItem key={page} onClick={() => handleNavigation(`/${page}`)}>
+                  <Typography textAlign="center">
+                    {t(page === 'search' ? 'common.search' : 'navigation.scan' as const)}
+                  </Typography>
+                </MenuItem>
+              ))}
+            </Menu>
+          </Box>
+          <RestaurantIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1, color: 'white' }} />
+          <Typography
+            variant="h5"
+            noWrap
+            component="a"
+            href="/"
+            sx={{
+              mr: 2,
+              display: { xs: 'flex', md: 'none' },
+              flexGrow: 1,
+              fontWeight: 700,
+              color: 'white',
+              textDecoration: 'none',
+            }}
+          >
+            Smart Cook
+          </Typography>
+          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
+            {pages.map((page) => (
               <Button
-                fullWidth
-                onClick={handleSignOut}
-                sx={{ 
-                  justifyContent: 'flex-start',
-                  px: 3,
-                  py: 2,
-                  color: 'error.main',
-                  textTransform: 'none',
-                  fontSize: '0.95rem',
-                  fontWeight: 500,
-                  letterSpacing: 0.2,
+                key={page}
+                onClick={() => handleNavigation(`/${page}`)}
+                sx={{
+                  my: 2,
+                  color: 'white',
+                  display: 'block',
                   '&:hover': {
-                    bgcolor: 'error.lighter',
-                  },
-                  '& .MuiButton-startIcon': {
-                    color: 'error.main',
-                    '& svg': { fontSize: 22 }
+                    bgcolor: 'primary.dark',
                   }
                 }}
-                startIcon={<Logout />}
               >
-                Sign Out
-              </Button>
-            </ListItem>
-          </>
-        )}
-        {!user && (
-          <ListItem disablePadding>
-            <Button
-              fullWidth
-              onClick={() => handleNavigation('/auth/login')}
-              sx={{ 
-                justifyContent: 'flex-start',
-                px: 3,
-                py: 2,
-                color: 'text.primary',
-                textTransform: 'none',
-                fontSize: '0.95rem',
-                fontWeight: 500,
-                letterSpacing: 0.2,
-                '&:hover': {
-                  bgcolor: 'action.hover',
-                },
-                '& .MuiButton-startIcon': {
-                  color: 'primary.main',
-                  '& svg': { fontSize: 22 }
-                }
-              }}
-              startIcon={<Person />}
-            >
-              Sign In
-            </Button>
-          </ListItem>
-        )}
-      </List>
-    </Drawer>
-  );
-
-  return (
-    <AppBar position="static" color="primary" elevation={1}>
-      <Toolbar>
-        <RestaurantMenu sx={{ mr: 2 }} />
-        <Typography 
-          variant="h6" 
-          component="div" 
-          sx={{ flexGrow: 1, cursor: 'pointer' }}
-          onClick={() => handleNavigation('/')}
-        >
-          Smart Cook
-        </Typography>
-        
-        {isMobile ? (
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleMobileMenuToggle}
-          >
-            <MenuIcon />
-          </IconButton>
-        ) : (
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            {navigationItems.map((item) => (
-              <Button 
-                key={item.text}
-                color="inherit" 
-                component={Link} 
-                href={item.path}
-              >
-                {item.text}
+                {t(page === 'search' ? 'common.search' : 'navigation.scan' as const)}
               </Button>
             ))}
+          </Box>
+
+          <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <LanguageSelector />
+            
             {user ? (
               <>
-                <IconButton
-                  size="large"
-                  aria-label="account of current user"
-                  aria-controls="menu-appbar"
-                  aria-haspopup="true"
-                  onClick={handleMenu}
-                  color="inherit"
-                >
-                  {user.user_metadata?.avatar_url ? (
-                    <Avatar
-                      src={user.user_metadata.avatar_url}
-                      alt={user.email || ''}
-                      sx={{ width: 32, height: 32 }}
-                    />
-                  ) : (
-                    <AccountCircle />
-                  )}
-                </IconButton>
+                <Tooltip title="Open settings">
+                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                    <Avatar />
+                  </IconButton>
+                </Tooltip>
                 <Menu
+                  sx={{ mt: '45px' }}
                   id="menu-appbar"
-                  anchorEl={anchorEl}
+                  anchorEl={anchorElUser}
                   anchorOrigin={{
-                    vertical: 'bottom',
+                    vertical: 'top',
                     horizontal: 'right',
                   }}
                   keepMounted
@@ -340,35 +187,47 @@ export default function Navbar() {
                     vertical: 'top',
                     horizontal: 'right',
                   }}
-                  open={Boolean(anchorEl)}
-                  onClose={handleClose}
+                  open={Boolean(anchorElUser)}
+                  onClose={handleCloseUserMenu}
                 >
-                  {userMenuItems.map((item) => (
+                  {settings.map((setting) => (
                     <MenuItem 
-                      key={item.text}
-                      component={Link} 
-                      href={item.path}
-                      onClick={handleClose}
+                      key={setting.key} 
+                      onClick={() => {
+                        if (setting.key === 'sign-out') {
+                          handleSignOut();
+                        } else {
+                          handleNavigation(`/${setting.key}`);
+                          handleCloseUserMenu();
+                        }
+                      }}
                     >
-                      {item.text}
+                      <Typography textAlign="center">{t(setting.label)}</Typography>
                     </MenuItem>
                   ))}
-                  <MenuItem onClick={handleSignOut}>Sign Out</MenuItem>
                 </Menu>
               </>
             ) : (
-              <Button 
-                color="inherit" 
-                component={Link} 
-                href="/auth/login"
+              <Button
+                variant="outlined"
+                onClick={() => handleNavigation('/auth/login')}
+                sx={{
+                  color: 'white',
+                  borderColor: 'white',
+                  '&:hover': {
+                    borderColor: 'white',
+                    bgcolor: 'primary.dark',
+                  },
+                  textTransform: 'none',
+                  fontWeight: 500,
+                }}
               >
-                Sign In
+                {t('common.signIn')}
               </Button>
             )}
           </Box>
-        )}
-        {mobileMenu}
-      </Toolbar>
+        </Toolbar>
+      </Container>
     </AppBar>
   );
 } 

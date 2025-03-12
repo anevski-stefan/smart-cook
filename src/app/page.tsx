@@ -13,59 +13,62 @@ import {
 import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
+import { LanguageSelector } from '@/components/LanguageSelector';
 
 export default function Home() {
   const router = useRouter();
   const { user } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { t } = useTranslation();
 
   const features = [
     {
-      title: 'Smart Recipe Search',
-      description: 'Find recipes that match your preferences, dietary restrictions, and available ingredients.',
+      title: t('home.features.search.title'),
+      description: t('home.features.search.description'),
       icon: <Search sx={{ fontSize: 40, color: 'primary.main' }} />,
       action: () => router.push('/recipes'),
-      buttonText: 'Find Recipes'
+      buttonText: t('home.features.search.button'),
     },
     {
-      title: 'Ingredient Scanner',
-      description: 'Use your camera to scan ingredients and get instant recipe suggestions.',
+      title: t('home.features.scanner.title'),
+      description: t('home.features.scanner.description'),
       icon: <CameraAlt sx={{ fontSize: 40, color: 'primary.main' }} />,
       action: () => router.push('/scan'),
-      buttonText: 'Scan Now',
+      buttonText: t('home.features.scanner.button'),
       requiresAuth: true
     },
     {
-      title: 'Ingredient Management',
-      description: 'Keep track of your pantry and get notified when items are running low.',
+      title: t('home.features.management.title'),
+      description: t('home.features.management.description'),
       icon: <Kitchen sx={{ fontSize: 40, color: 'primary.main' }} />,
       action: () => router.push('/ingredients'),
-      buttonText: 'Manage Ingredients',
+      buttonText: t('home.features.management.button'),
       requiresAuth: true
     },
     {
-      title: 'Shopping List',
-      description: 'Automatically generate shopping lists from recipes and manage your grocery needs.',
+      title: t('home.features.shopping.title'),
+      description: t('home.features.shopping.description'),
       icon: <ShoppingCart sx={{ fontSize: 40, color: 'primary.main' }} />,
       action: () => router.push('/shopping-list'),
-      buttonText: 'View List',
+      buttonText: t('home.features.shopping.button'),
       requiresAuth: true
     },
     {
-      title: 'Recipe Collection',
-      description: 'Save your favorite recipes and organize them for quick access.',
+      title: t('home.features.collection.title'),
+      description: t('home.features.collection.description'),
       icon: <BookmarkBorder sx={{ fontSize: 40, color: 'primary.main' }} />,
       action: () => router.push('/saved-recipes'),
-      buttonText: 'My Recipes',
+      buttonText: t('home.features.collection.button'),
       requiresAuth: true
     },
     {
-      title: 'Cooking Assistant',
-      description: 'Get step-by-step guidance and smart timers while cooking your meals.',
+      title: t('home.features.assistant.title'),
+      description: t('home.features.assistant.description'),
       icon: <Assistant sx={{ fontSize: 40, color: 'primary.main' }} />,
       action: () => router.push('/recipes'),
-      buttonText: 'Start Cooking',
+      buttonText: t('home.features.assistant.button'),
       requiresAuth: true
     }
   ];
@@ -85,22 +88,30 @@ export default function Home() {
         >
           <Box sx={{ 
             display: 'flex', 
+            flexDirection: 'column',
             alignItems: 'center', 
             gap: 2,
             mb: { xs: 1, md: 2 }
           }}>
-            <Restaurant sx={{ fontSize: { xs: 40, md: 56 }, color: 'primary.main' }} />
-            <Typography 
-              variant={isMobile ? "h3" : "h2"} 
-              component="h1" 
-              sx={{ 
-                fontWeight: 700,
-                color: '#2C3E50',
-                letterSpacing: '-0.5px'
-              }}
-            >
-              Smart Cook
-            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 2 
+            }}>
+              <Restaurant sx={{ fontSize: { xs: 40, md: 56 }, color: 'primary.main' }} />
+              <Typography 
+                variant={isMobile ? "h3" : "h2"} 
+                component="h1" 
+                sx={{ 
+                  fontWeight: 700,
+                  color: '#2C3E50',
+                  letterSpacing: '-0.5px'
+                }}
+              >
+                {t('common.welcome')}
+              </Typography>
+            </Box>
+            <LanguageSelector />
           </Box>
 
           <Typography 
@@ -112,7 +123,7 @@ export default function Home() {
               px: 2
             }}
           >
-            Your AI-powered cooking companion that helps you discover recipes, manage ingredients, and cook with confidence.
+            {t('home.subtitle')}
           </Typography>
 
           <Grid container spacing={3}>
@@ -157,7 +168,7 @@ export default function Home() {
                       mt: 'auto'
                     }}
                   >
-                    {feature.requiresAuth && !user ? 'Sign In to Access' : feature.buttonText}
+                    {feature.requiresAuth && !user ? t('auth.signInButton') : feature.buttonText}
                   </Button>
                 </Paper>
               </Grid>

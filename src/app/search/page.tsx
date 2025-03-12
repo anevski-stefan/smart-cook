@@ -1,124 +1,195 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Container,
   Typography,
-  TextField,
-  Button,
-  Grid,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Box,
   CircularProgress,
-  Pagination,
+  Grid,
+  TextField,
   InputAdornment,
   IconButton,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import Navbar from '@/components/Navbar';
 import RecipeCard from '@/components/RecipeCard';
+import RecipeFilterSidebar, { RecipeFilters } from '@/components/RecipeFilterSidebar';
 import type { Recipe } from '@/types/ingredient';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useRouter } from 'next/navigation';
 
 const ITEMS_PER_PAGE = 12;
 
+const initialFilters: RecipeFilters = {
+  searchTerm: '',
+  cookingTime: [0, 180],
+  complexity: [],
+  mealType: [],
+  dietary: [],
+};
+
 export default function SearchPage() {
-  const [query, setQuery] = useState('');
-  const [cuisine, setCuisine] = useState('');
-  const [diet, setDiet] = useState('');
+  const router = useRouter();
+  const { t } = useTranslation();
+  const [filters, setFilters] = useState<RecipeFilters>(initialFilters);
   const [loading, setLoading] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [totalResults, setTotalResults] = useState(0);
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const [hasMore, setHasMore] = useState(true);
+  const searchTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
+  const isInitialMount = useRef<boolean>(true);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastRecipeElementRef = useCallback((node: HTMLElement | null) => {
+    if (loading) return;
     
-    setLoading(true);
-    setPage(1); // Reset to first page on new search
+    if (observer.current) observer.current.disconnect();
     
-    try {
-      const searchParams = new URLSearchParams({
-        query,
-        ...(cuisine && { cuisine }),
-        ...(diet && { diet }),
-        offset: '0', // Start from first page
-        number: ITEMS_PER_PAGE.toString(),
-      });
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prevPage => prevPage + 1);
+      }
+    });
+    
+    if (node) observer.current.observe(node);
+  }, [loading, hasMore]);
 
-      const response = await fetch(`/api/recipes/search?${searchParams}`);
-      const data = await response.json();
-
-      if (!response.ok) throw new Error(data.message || 'Failed to search recipes');
-
-      setRecipes(data.results);
-      setTotalResults(data.totalResults);
-    } catch (error) {
-      console.error('Error searching recipes:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePageChange = async (_: React.ChangeEvent<unknown>, value: number) => {
-    setPage(value);
+  const fetchRecipes = useCallback(async (currentFilters: RecipeFilters, currentPage: number, isNewSearch: boolean = false) => {
     setLoading(true);
     
     try {
       const searchParams = new URLSearchParams({
-        query,
-        ...(cuisine && { cuisine }),
-        ...(diet && { diet }),
-        offset: ((value - 1) * ITEMS_PER_PAGE).toString(),
+        ...(currentFilters.searchTerm.trim() && { query: currentFilters.searchTerm }),
+        ...(currentFilters.complexity.length > 0 && { complexity: currentFilters.complexity.join(',') }),
+        ...(currentFilters.mealType.length > 0 && { mealType: currentFilters.mealType.join(',') }),
+        ...(currentFilters.dietary.length > 0 && { dietary: currentFilters.dietary.join(',') }),
+        minTime: currentFilters.cookingTime[0].toString(),
+        maxTime: currentFilters.cookingTime[1].toString(),
+        page: currentPage.toString(),
         number: ITEMS_PER_PAGE.toString(),
       });
 
-      const response = await fetch(`/api/recipes/search?${searchParams}`);
+      // Use the regular recipes endpoint if no search term, otherwise use search endpoint
+      const endpoint = currentFilters.searchTerm.trim() ? '/api/recipes/search' : '/api/recipes';
+      console.log('Fetching recipes with params:', Object.fromEntries(searchParams.entries()));
+      const response = await fetch(`${endpoint}?${searchParams}`);
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.message || 'Failed to search recipes');
+      if (!response.ok) throw new Error(data.message || 'Failed to fetch recipes');
 
-      setRecipes(data.results);
-      setTotalResults(data.totalResults);
+      setRecipes(prevRecipes => isNewSearch ? data.results : [...prevRecipes, ...data.results]);
+      setHasMore(data.hasMore);
     } catch (error) {
-      console.error('Error searching recipes:', error);
+      console.error('Error fetching recipes:', error);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const handleSearch = useCallback(() => {
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+    searchTimeout.current = setTimeout(() => {
+      setPage(1);
+      fetchRecipes(filters, 1, true);
+    }, 300);
+  }, [filters, fetchRecipes]);
+
+  const handleFiltersChange = (newFilters: RecipeFilters) => {
+    setFilters(newFilters);
   };
+
+  // Load initial recipes
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      fetchRecipes(initialFilters, 1, true);
+    }
+  }, [fetchRecipes]);
+
+  // Handle filter changes
+  useEffect(() => {
+    if (!isInitialMount.current) {
+      handleSearch();
+    }
+    return () => {
+      if (searchTimeout.current) {
+        clearTimeout(searchTimeout.current);
+      }
+    };
+  }, [handleSearch]);
+
+  // Handle pagination
+  useEffect(() => {
+    if (page > 1) {
+      fetchRecipes(filters, page, false);
+    }
+  }, [page, filters, fetchRecipes]);
 
   return (
     <>
       <Navbar />
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Search Recipes
-        </Typography>
+      <Box 
+        component="main"
+        sx={{ 
+          display: 'flex',
+          minHeight: 'calc(100vh - 64px)',
+          maxWidth: '100%',
+          position: 'relative'
+        }}
+      >
+        <RecipeFilterSidebar
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
 
-        <Box sx={{ mb: 4 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+        <Box sx={{ 
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          maxWidth: '100%'
+        }}>
+          <Container 
+            maxWidth="lg" 
+            sx={{ 
+              mt: 4,
+              px: { xs: 2, sm: 3 },
+              width: '100%',
+              maxWidth: '100% !important'
+            }}
+          >
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              mb: 4,
+              overflow: 'hidden'
+            }}>
+              <Typography variant="h4" component="h1" noWrap>
+                {t('search.searchRecipes')}
+              </Typography>
+            </Box>
+
+            <Box sx={{ mb: 4, maxWidth: '100%' }}>
               <TextField
                 fullWidth
-                placeholder="Search recipes..."
-                value={query}
+                placeholder={t('search.searchRecipes')}
+                value={filters.searchTerm}
                 onChange={(e) => {
-                  setQuery(e.target.value);
+                  setFilters({ ...filters, searchTerm: e.target.value });
                 }}
                 variant="outlined"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
                       <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSearch(e);
-                        }}
+                        onClick={handleSearch}
                         aria-label="search recipes"
-                        disabled={loading || !query.trim()}
+                        disabled={loading || !filters.searchTerm.trim()}
                         sx={{
                           mr: 1,
                           color: '#666666',
@@ -142,102 +213,58 @@ export default function SearchPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    e.stopPropagation();
-                    handleSearch(e);
+                    handleSearch();
                   }
                 }}
               />
-            </Grid>
-
-            <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>Cuisine</InputLabel>
-                <Select
-                  value={cuisine}
-                  label="Cuisine"
-                  onChange={(e) => setCuisine(e.target.value)}
-                >
-                  <MenuItem value="">Any</MenuItem>
-                  <MenuItem value="italian">Italian</MenuItem>
-                  <MenuItem value="mexican">Mexican</MenuItem>
-                  <MenuItem value="chinese">Chinese</MenuItem>
-                  <MenuItem value="indian">Indian</MenuItem>
-                  <MenuItem value="japanese">Japanese</MenuItem>
-                  <MenuItem value="thai">Thai</MenuItem>
-                  <MenuItem value="mediterranean">Mediterranean</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>Diet</InputLabel>
-                <Select
-                  value={diet}
-                  label="Diet"
-                  onChange={(e) => setDiet(e.target.value)}
-                >
-                  <MenuItem value="">Any</MenuItem>
-                  <MenuItem value="vegetarian">Vegetarian</MenuItem>
-                  <MenuItem value="vegan">Vegan</MenuItem>
-                  <MenuItem value="gluten-free">Gluten Free</MenuItem>
-                  <MenuItem value="ketogenic">Ketogenic</MenuItem>
-                  <MenuItem value="paleo">Paleo</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} md={2}>
-              <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                size="large"
-                disabled={loading || !query.trim()}
-                startIcon={<SearchIcon />}
-                sx={{ 
-                  height: '56px',
-                  bgcolor: 'primary.main',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                  },
-                }}
-              >
-                {loading ? <CircularProgress size={24} color="inherit" /> : 'Search'}
-              </Button>
-            </Grid>
-          </Grid>
-        </Box>
-
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : recipes.length > 0 ? (
-          <>
-            <Grid container spacing={3}>
-              {recipes.map((recipe) => (
-                <Grid item key={recipe.id} xs={12} sm={6} md={4} lg={3}>
-                  <RecipeCard recipe={recipe} />
-                </Grid>
-              ))}
-            </Grid>
-
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-              <Pagination
-                count={Math.ceil(totalResults / ITEMS_PER_PAGE)}
-                page={page}
-                onChange={handlePageChange}
-                color="primary"
-              />
             </Box>
-          </>
-        ) : query ? (
-          <Typography color="text.secondary" align="center">
-            No recipes found. Try different search terms or filters.
-          </Typography>
-        ) : null}
-      </Container>
+
+            {loading && page === 1 ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : recipes.length > 0 ? (
+              <>
+                <Grid container spacing={3}>
+                  {recipes.map((recipe, index) => (
+                    <Grid 
+                      item 
+                      key={`${recipe.id}-${index}`} 
+                      xs={12} 
+                      sm={6} 
+                      md={4}
+                      ref={index === recipes.length - 1 ? lastRecipeElementRef : undefined}
+                    >
+                      <RecipeCard 
+                        recipe={recipe} 
+                        onClick={() => router.push(`/recipes/${recipe.id}`)}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+                {loading && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                )}
+                {!loading && !hasMore && (
+                  <Typography color="text.secondary" align="center" sx={{ mt: 4 }}>
+                    {t('search.noMoreRecipes')}
+                  </Typography>
+                )}
+              </>
+            ) : filters.searchTerm ? (
+              <Typography color="text.secondary" align="center">
+                {t('search.noRecipesFound')}
+              </Typography>
+            ) : (
+              <Typography color="text.secondary" align="center">
+                {t('search.enterSearchTerm')}
+              </Typography>
+            )}
+          </Container>
+        </Box>
+      </Box>
     </>
   );
 } 

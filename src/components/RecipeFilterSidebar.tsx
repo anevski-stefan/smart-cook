@@ -13,15 +13,37 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import { FilterList, Close } from '@mui/icons-material';
-import { useState } from 'react';
+import { Close } from '@mui/icons-material';
+import { useTranslation } from '@/hooks/useTranslation';
+
+const MEAL_TYPES = [
+  'breakfast',
+  'lunch',
+  'dinner',
+  'dessert',
+  'snack',
+  'appetizer'
+] as const;
+
+const DIETARY_OPTIONS = [
+  'vegetarian',
+  'vegan',
+  'glutenFree',
+  'dairyFree',
+  'lowCarb',
+  'keto'
+] as const;
+
+const COMPLEXITY_LEVELS = ['easy', 'medium', 'hard'] as const;
+
+type ComplexityLevel = typeof COMPLEXITY_LEVELS[number];
 
 export interface RecipeFilters {
   searchTerm: string;
   cookingTime: [number, number];
-  complexity: ('Easy' | 'Medium' | 'Hard')[];
-  mealType: string[];
-  dietary: string[];
+  complexity: ComplexityLevel[];
+  mealType: (typeof MEAL_TYPES[number])[];
+  dietary: (typeof DIETARY_OPTIONS[number])[];
 }
 
 interface RecipeFilterSidebarProps {
@@ -31,26 +53,6 @@ interface RecipeFilterSidebarProps {
   onClose: () => void;
 }
 
-const MEAL_TYPES = [
-  'Breakfast',
-  'Lunch',
-  'Dinner',
-  'Dessert',
-  'Snack',
-  'Appetizer'
-];
-
-const DIETARY_OPTIONS = [
-  'Vegetarian',
-  'Vegan',
-  'Gluten-Free',
-  'Dairy-Free',
-  'Low-Carb',
-  'Keto'
-];
-
-const COMPLEXITY_LEVELS = ['Easy', 'Medium', 'Hard'];
-
 export default function RecipeFilterSidebar({ 
   filters, 
   onFiltersChange, 
@@ -59,6 +61,7 @@ export default function RecipeFilterSidebar({
 }: RecipeFilterSidebarProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { t } = useTranslation();
   
   const handleTimeChange = (event: Event, newValue: number | number[]) => {
     onFiltersChange({
@@ -67,10 +70,10 @@ export default function RecipeFilterSidebar({
     });
   };
 
-  const handleComplexityChange = (level: string) => {
-    const newComplexity = filters.complexity.includes(level as any)
+  const handleComplexityChange = (level: ComplexityLevel) => {
+    const newComplexity = filters.complexity.includes(level)
       ? filters.complexity.filter(c => c !== level)
-      : [...filters.complexity, level] as ('Easy' | 'Medium' | 'Hard')[];
+      : [...filters.complexity, level];
     
     onFiltersChange({
       ...filters,
@@ -78,7 +81,7 @@ export default function RecipeFilterSidebar({
     });
   };
 
-  const handleMealTypeChange = (type: string) => {
+  const handleMealTypeChange = (type: typeof MEAL_TYPES[number]) => {
     const newTypes = filters.mealType.includes(type)
       ? filters.mealType.filter(t => t !== type)
       : [...filters.mealType, type];
@@ -89,7 +92,7 @@ export default function RecipeFilterSidebar({
     });
   };
 
-  const handleDietaryChange = (option: string) => {
+  const handleDietaryChange = (option: typeof DIETARY_OPTIONS[number]) => {
     const newDietary = filters.dietary.includes(option)
       ? filters.dietary.filter(d => d !== option)
       : [...filters.dietary, option];
@@ -101,10 +104,23 @@ export default function RecipeFilterSidebar({
   };
 
   const drawerContent = (
-    <Box sx={{ width: 280, p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box sx={{ 
+      width: '100%',
+      maxWidth: '280px',
+      p: 3,
+      boxSizing: 'border-box',
+      borderBottom: '1px solid',
+      borderColor: (theme) => theme.palette.divider
+    }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 3,
+        pb: 2
+      }}>
         <Typography variant="h6">
-          Filter Recipes
+          {t('search.filterRecipes')}
         </Typography>
         {isMobile && (
           <IconButton onClick={onClose} size="small">
@@ -116,16 +132,21 @@ export default function RecipeFilterSidebar({
       <Box sx={{ mb: 4 }}>
         <TextField
           fullWidth
-          label="Search recipes"
+          label={t('search.searchRecipes')}
           value={filters.searchTerm}
           onChange={(e) => onFiltersChange({ ...filters, searchTerm: e.target.value })}
           size="small"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && filters.searchTerm.trim()) {
+              onFiltersChange({ ...filters, searchTerm: filters.searchTerm.trim() });
+            }
+          }}
         />
       </Box>
 
       <Box sx={{ mb: 4 }}>
         <Typography variant="subtitle2" gutterBottom>
-          Cooking Time (minutes)
+          {t('search.cookingTime')}
         </Typography>
         <Slider
           value={filters.cookingTime}
@@ -135,10 +156,10 @@ export default function RecipeFilterSidebar({
           max={180}
           step={15}
           marks={[
-            { value: 0, label: '0m' },
-            { value: 60, label: '1h' },
-            { value: 120, label: '2h' },
-            { value: 180, label: '3h+' },
+            { value: 0, label: '0' + t('search.minutes') },
+            { value: 60, label: '1' + t('search.hours.one') },
+            { value: 120, label: '2' + t('search.hours.one') },
+            { value: 180, label: '3' + t('search.hours.plus') },
           ]}
         />
       </Box>
@@ -147,7 +168,7 @@ export default function RecipeFilterSidebar({
 
       <Box sx={{ mb: 4 }}>
         <Typography variant="subtitle2" gutterBottom>
-          Complexity
+          {t('search.complexity')}
         </Typography>
         <FormGroup>
           {COMPLEXITY_LEVELS.map((level) => (
@@ -155,12 +176,12 @@ export default function RecipeFilterSidebar({
               key={level}
               control={
                 <Checkbox
-                  checked={filters.complexity.includes(level as any)}
+                  checked={filters.complexity.includes(level)}
                   onChange={() => handleComplexityChange(level)}
                   size="small"
                 />
               }
-              label={level}
+              label={t(`search.complexityLevels.${level}`)}
             />
           ))}
         </FormGroup>
@@ -170,13 +191,13 @@ export default function RecipeFilterSidebar({
 
       <Box sx={{ mb: 4 }}>
         <Typography variant="subtitle2" gutterBottom>
-          Meal Type
+          {t('search.mealType')}
         </Typography>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           {MEAL_TYPES.map((type) => (
             <Chip
               key={type}
-              label={type}
+              label={t(`search.mealTypes.${type}`)}
               onClick={() => handleMealTypeChange(type)}
               color={filters.mealType.includes(type) ? 'primary' : 'default'}
               variant={filters.mealType.includes(type) ? 'filled' : 'outlined'}
@@ -190,13 +211,13 @@ export default function RecipeFilterSidebar({
 
       <Box>
         <Typography variant="subtitle2" gutterBottom>
-          Dietary Preferences
+          {t('search.dietaryPreferences')}
         </Typography>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           {DIETARY_OPTIONS.map((option) => (
             <Chip
               key={option}
-              label={option}
+              label={t(`search.dietaryOptions.${option}`)}
               onClick={() => handleDietaryChange(option)}
               color={filters.dietary.includes(option) ? 'secondary' : 'default'}
               variant={filters.dietary.includes(option) ? 'filled' : 'outlined'}
@@ -215,18 +236,30 @@ export default function RecipeFilterSidebar({
           anchor="left"
           open={open}
           onClose={onClose}
+          PaperProps={{
+            sx: {
+              width: '100%',
+              maxWidth: '280px',
+              boxSizing: 'border-box'
+            }
+          }}
         >
           {drawerContent}
         </Drawer>
       ) : (
         <Box
           sx={{
-            width: 280,
+            width: '100%',
+            maxWidth: '280px',
             flexShrink: 0,
             borderRight: 1,
             borderColor: 'divider',
             height: '100%',
-            overflow: 'auto'
+            overflow: 'auto',
+            position: 'sticky',
+            top: 0,
+            left: 0,
+            boxSizing: 'border-box'
           }}
         >
           {drawerContent}
