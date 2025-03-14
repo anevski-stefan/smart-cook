@@ -25,8 +25,8 @@ import { supabase } from '@/utils/supabase-client';
 
 const categories = [
   'Weekly Calories',
-  'Number of Meals Made',
-  'Tried New Recipes',
+  'Number of Meals',
+  'Try New Recipes',
   'Cook a Balanced Meal',
   'Try an International Dish',
   'Reduce Food Waste',
@@ -192,7 +192,16 @@ export default function ProfilePage() {
                   rows={4}
                   sx={{ mb: 2 }}
                 />
-                
+              </Grid>
+
+              <Grid item xs={12}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={handleAddGoal}
+                >
+                  Add Goal
+                </Button>
               </Grid>
 
               <Grid item xs={12}>
