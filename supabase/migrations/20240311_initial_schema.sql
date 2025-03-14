@@ -140,3 +140,22 @@ create trigger handle_shopping_list_updated_at
   before update on public.shopping_list
   for each row
   execute function public.handle_updated_at(); 
+
+  create or replace function public.get_recipe_average_rating(recipe_id text)
+returns numeric as $$
+  select coalesce(avg(rating)::numeric(3,2), 0)
+  from public.recipe_ratings
+  where recipe_ratings.recipe_id = $1;
+$$ language sql security definer;
+
+
+-- Keep only the text version and drop the UUID version
+DROP FUNCTION IF EXISTS public.get_recipe_average_rating(recipe_id uuid);
+
+-- Make sure we have only the text version
+CREATE OR REPLACE FUNCTION public.get_recipe_average_rating(recipe_id text)
+RETURNS numeric AS $$
+  SELECT COALESCE(AVG(rating)::numeric(3,2), 0)
+  FROM public.recipe_ratings
+  WHERE recipe_ratings.recipe_id = $1;
+$$ LANGUAGE sql SECURITY DEFINER;
