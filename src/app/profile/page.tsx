@@ -43,7 +43,7 @@ export default function ProfilePage() {
   });
   const [goal, setGoal] = useState('');
   const [description, setDescription] = useState('');
-  const [goals, setGoals] = useState<{ category: string; description: string }[]>([]);
+  const [goals, setGoals] = useState<{ category: string; description: string; date: string }[]>([]);
 
   useEffect(() => {
     // Load goals from local storage on component mount
@@ -102,11 +102,17 @@ export default function ProfilePage() {
       });
       return;
     }
-    const newGoals = [...goals, { category: goal, description }];
+    const newGoals = [...goals, { category: goal, description, date: new Date().toLocaleDateString() }];
     setGoals(newGoals);
     localStorage.setItem('weeklyGoals', JSON.stringify(newGoals));
     setGoal('');
     setDescription('');
+  };
+
+  const handleDeleteGoal = (index: number) => {
+    const updatedGoals = goals.filter((_, i) => i !== index);
+    setGoals(updatedGoals);
+    localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
   };
 
   return (
@@ -125,8 +131,24 @@ export default function ProfilePage() {
               </Grid>
 
               <Grid item xs={12}>
-                <Typography variant="h4" component="h1" gutterBottom align="center">
-                  {t('profile.settings')}
+                <Typography
+                  variant="h4"
+                  component="h1"
+                  gutterBottom
+                  align="center"
+                  sx={{
+                    background: 'linear-gradient(90deg, green, orange)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  Hello, {formData.fullName}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Typography variant="h5" component="h2" gutterBottom align="center" color="text.secondary">
+                  Profile Settings
                 </Typography>
               </Grid>
 
@@ -199,6 +221,7 @@ export default function ProfilePage() {
                   variant="contained"
                   fullWidth
                   onClick={handleAddGoal}
+                  sx={{ backgroundColor: 'green', '&:hover': { backgroundColor: 'darkgreen' } }}
                 >
                   Add Goal
                 </Button>
@@ -210,6 +233,7 @@ export default function ProfilePage() {
                   variant="contained"
                   fullWidth
                   disabled={loading}
+                  sx={{ backgroundColor: 'green', '&:hover': { backgroundColor: 'darkgreen' } }}
                 >
                   {loading ? t('profile.updating') : t('profile.updateProfile')}
                 </Button>
@@ -218,17 +242,25 @@ export default function ProfilePage() {
           </Box>
         </Paper>
 
-        <Paper elevation={3} sx={{ p: 2, mt: 4 }}>
-          <Typography variant="h6" gutterBottom>
+        <Paper elevation={3} sx={{ p: 2, mt: 4, borderRadius: 2, boxShadow: 4 }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'orange' }}>
             Your Goals
           </Typography>
-          <List>
+          <List sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {goals.map((goal, index) => (
-              <ListItem key={index}>
+              <ListItem key={index} sx={{ border: '1px solid #ddd', borderRadius: 2, p: 2, boxShadow: 2 }}>
                 <ListItemText
-                  primary={goal.category}
-                  secondary={goal.description}
+                  primary={<Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>{`${goal.category} - ${goal.date}`}</Typography>}
+                  secondary={<Typography variant="body2" color="text.secondary">{goal.description}</Typography>}
                 />
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => handleDeleteGoal(index)}
+                  sx={{ borderColor: 'orange', color: 'orange', '&:hover': { borderColor: 'darkorange', color: 'darkorange' } }}
+                >
+                  Delete
+                </Button>
               </ListItem>
             ))}
           </List>
