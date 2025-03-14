@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSelector } from '@/components/LanguageSelector';
 
+
 export default function Home() {
   const router = useRouter();
   const { user } = useAuth();
@@ -76,7 +77,20 @@ export default function Home() {
   return (
     <>
       <Navbar />
-      <Container maxWidth="lg" sx={{ mt: { xs: 4, md: 8 }, mb: 8 }}>
+      <Container 
+        maxWidth="lg" 
+        sx={{ 
+          mt: { xs: 4, md: 8 }, 
+          mb: 8,
+          backgroundImage: 'url(/background.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          borderRadius: 2,
+          boxShadow: 3,
+          p: { xs: 2, md: 4 },
+          color: 'white',
+        }}
+      >
         <Box
           sx={{
             display: 'flex',
@@ -104,23 +118,26 @@ export default function Home() {
                 component="h1" 
                 sx={{ 
                   fontWeight: 700,
-                  color: '#2C3E50',
-                  letterSpacing: '-0.5px'
+                  color: 'white',
+                  letterSpacing: '-0.5px',
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.1)'
                 }}
               >
                 {t('common.welcome')}
               </Typography>
             </Box>
-            <LanguageSelector />
+            {/* <LanguageSelector /> */}
           </Box>
 
           <Typography 
             variant={isMobile ? "h6" : "h5"} 
-            color="text.secondary" 
             sx={{ 
               maxWidth: 800,
               mb: { xs: 2, md: 4 },
-              px: 2
+              px: 2,
+              fontStyle: 'italic',
+              color: 'white',
+              textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
             }}
           >
             {t('home.subtitle')}
@@ -143,6 +160,8 @@ export default function Home() {
                       transform: 'translateY(-4px)',
                       boxShadow: 4,
                     },
+                    borderRadius: 2,
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)'
                   }}
                 >
                   <Box sx={{ mb: 2 }}>
@@ -165,7 +184,11 @@ export default function Home() {
                     onClick={() => feature.requiresAuth && !user ? router.push('/auth/login') : feature.action()}
                     sx={{ 
                       width: '100%',
-                      mt: 'auto'
+                      mt: 'auto',
+                      transition: 'background-color 0.3s',
+                      '&:hover': {
+                        backgroundColor: 'primary.dark'
+                      }
                     }}
                   >
                     {feature.requiresAuth && !user ? t('auth.signInButton') : feature.buttonText}

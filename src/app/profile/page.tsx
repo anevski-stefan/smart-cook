@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -12,12 +12,25 @@ import {
   Grid,
   Snackbar,
   Alert,
+  MenuItem,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/utils/supabase-client';
+
+const categories = [
+  'Weekly Calories',
+  'Number of Meals Made',
+  'Tried New Recipes',
+  'Cook a Balanced Meal',
+  'Try an International Dish',
+  'Reduce Food Waste',
+];
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -28,6 +41,17 @@ export default function ProfilePage() {
     fullName: user?.user_metadata?.full_name || '',
     avatarUrl: user?.user_metadata?.avatar_url || '',
   });
+  const [goal, setGoal] = useState('');
+  const [description, setDescription] = useState('');
+  const [goals, setGoals] = useState<{ category: string; description: string }[]>([]);
+
+  useEffect(() => {
+    // Load goals from local storage on component mount
+    const savedGoals = localStorage.getItem('weeklyGoals');
+    if (savedGoals) {
+      setGoals(JSON.parse(savedGoals));
+    }
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -68,6 +92,17 @@ export default function ProfilePage() {
 
   const handleCloseMessage = () => {
     setMessage(null);
+  };
+
+  const handleAddGoal = () => {
+    if (goal && description) {
+      const newGoals = [...goals, { category: goal, description }];
+      setGoals(newGoals);
+      setGoal('');
+      setDescription('');
+      // Save goals to local storage
+      localStorage.setItem('weeklyGoals', JSON.stringify(newGoals));
+    }
   };
 
   return (
@@ -121,6 +156,41 @@ export default function ProfilePage() {
               </Grid>
 
               <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Weekly Goals
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  select
+                  label="Category"
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                >
+                  {categories.map((category) => (
+                    <MenuItem key={category} value={category}>
+                      {category}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  label="Description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  fullWidth
+                  multiline
+                  rows={4}
+                  sx={{ mb: 2 }}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
                 <Button
                   type="submit"
                   variant="contained"
@@ -132,6 +202,22 @@ export default function ProfilePage() {
               </Grid>
             </Grid>
           </Box>
+        </Paper>
+
+        <Paper elevation={3} sx={{ p: 2, mt: 4 }}>
+          <Typography variant="h6" gutterBottom>
+            Your Goals
+          </Typography>
+          <List>
+            {goals.map((goal, index) => (
+              <ListItem key={index}>
+                <ListItemText
+                  primary={goal.category}
+                  secondary={goal.description}
+                />
+              </ListItem>
+            ))}
+          </List>
         </Paper>
 
         {message && (
