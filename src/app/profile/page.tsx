@@ -48,11 +48,11 @@ export default function ProfilePage() {
   useEffect(() => {
     // Load goals from local storage on component mount
     const savedGoals = localStorage.getItem('weeklyGoals');
+    console.log("Loaded Goals:", savedGoals);
     if (savedGoals) {
       setGoals(JSON.parse(savedGoals));
     }
   }, []);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -95,14 +95,18 @@ export default function ProfilePage() {
   };
 
   const handleAddGoal = () => {
-    if (goal && description) {
-      const newGoals = [...goals, { category: goal, description }];
-      setGoals(newGoals);
-      setGoal('');
-      setDescription('');
-      // Save goals to local storage
-      localStorage.setItem('weeklyGoals', JSON.stringify(newGoals));
+    if (!goal || !description) {
+      setMessage({
+        type: 'error',
+        text: 'Please fill in all fields before adding a goal.',
+      });
+      return;
     }
+    const newGoals = [...goals, { category: goal, description }];
+    setGoals(newGoals);
+    localStorage.setItem('weeklyGoals', JSON.stringify(newGoals));
+    setGoal('');
+    setDescription('');
   };
 
   return (
@@ -188,6 +192,7 @@ export default function ProfilePage() {
                   rows={4}
                   sx={{ mb: 2 }}
                 />
+                
               </Grid>
 
               <Grid item xs={12}>
