@@ -16,16 +16,23 @@ import {
   Chip,
   Button,
   Checkbox,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import KitchenIcon from '@mui/icons-material/Kitchen';
 import AddIcon from '@mui/icons-material/Add';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
-import { supabase } from '@/utils/supabase-client';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import RecipeSuggestions from '@/components/RecipeSuggestions';
+import { createClient } from '@/utils/supabase/client';
 
 interface UserIngredient {
   id: string;
@@ -58,6 +65,28 @@ export default function IngredientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [dialogState, setDialogState] = useState({
+    open: false,
+    name: '',
+    quantity: '1',
+    unit: 'piece'
+  });
+
+  // Create authenticated Supabase client
+  const supabase = createClient();
+
+  // Check if user is authenticated
+  useEffect(() => {
+    if (!user) {
+      setError('You must be logged in to view and manage ingredients');
+      setLoading(false);
+    } else {
+      // Clear error if user is authenticated
+      if (error === 'You must be logged in to view and manage ingredients') {
+        setError(null);
+      }
+    }
+  }, [user, error]);
 
   // Memoize the error messages
   const errorMessages = useMemo(() => ({
@@ -72,10 +101,20 @@ export default function IngredientsPage() {
     }
     
     try {
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('Your session has expired. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
+      const userId = session.user.id;
+      
       const { data, error } = await supabase
         .from('user_ingredients')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -106,7 +145,7 @@ export default function IngredientsPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, errorMessages]);
+  }, [user?.id, errorMessages, supabase]);
 
   useEffect(() => {
     fetchIngredients();
@@ -114,16 +153,33 @@ export default function IngredientsPage() {
 
   const deleteIngredient = async (ingredientId: string) => {
     try {
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('Your session has expired. Please log in again.');
+        return;
+      }
+      
+      console.log('Deleting ingredient:', ingredientId);
+      
       const { error } = await supabase
         .from('user_ingredients')
         .delete()
         .eq('id', ingredientId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase delete error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
 
       await fetchIngredients();
     } catch (err) {
-      console.error('Error deleting ingredient:', err);
+      console.error('Error deleting ingredient:', err instanceof Error ? err.message : String(err));
       setError(errorMessages.deleteError);
     }
   };
@@ -147,6 +203,73 @@ export default function IngredientsPage() {
 
   const handleGetMealSuggestions = () => {
     setShowSuggestions(true);
+  };
+
+  const handleManualAdd = async () => {
+    if (!user) {
+      setError('You must be logged in to add ingredients');
+      return;
+    }
+    
+    if (!dialogState.name.trim()) {
+      setError('Please enter an ingredient name');
+      return;
+    }
+
+    try {
+      // Validate quantity is a positive number
+      const quantity = parseFloat(dialogState.quantity);
+      if (isNaN(quantity) || quantity <= 0) {
+        setError('Please enter a valid positive quantity');
+        return;
+      }
+
+      // Check if user session is valid
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError('Your session has expired. Please log in again.');
+        return;
+      }
+
+      // Use the session user ID for database operations
+      const userId = session.user.id;
+
+      // Log the user and request for debugging
+      console.log('Context user:', user.id);
+      console.log('Session user:', userId);
+      console.log('Adding ingredient:', {
+        user_id: userId,
+        name: dialogState.name.trim(),
+        quantity: quantity,
+        unit: dialogState.unit
+      });
+
+      const { error: insertError } = await supabase
+        .from('user_ingredients')
+        .insert([{
+          user_id: userId,
+          name: dialogState.name.trim(),
+          quantity: quantity,
+          unit: dialogState.unit
+        }]);
+
+      if (insertError) {
+        console.error('Supabase error details:', {
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          code: insertError.code
+        });
+        throw new Error(insertError.message || 'Failed to add ingredient');
+      }
+
+      await fetchIngredients();
+      setDialogState({ open: false, name: '', quantity: '1', unit: 'piece' });
+      setError(null);
+    } catch (err) {
+      console.error('Error adding ingredient:', err instanceof Error ? err.message : String(err));
+      setError(err instanceof Error ? err.message : 'Failed to add ingredient');
+    }
   };
 
   return (
@@ -184,7 +307,7 @@ export default function IngredientsPage() {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
-              onClick={() => router.push('/scan')}
+              onClick={() => setDialogState({ ...dialogState, open: true })}
               sx={{ 
                 flex: { xs: 1, sm: 'none' }
               }}
@@ -192,18 +315,30 @@ export default function IngredientsPage() {
               {t('ingredients.addIngredients')}
             </Button>
             {ingredients.length > 0 && (
-              <Button
-                variant="outlined"
-                color="primary"
-                startIcon={<RestaurantIcon />}
-                onClick={handleGetMealSuggestions}
-                disabled={selectedIngredients.length === 0}
-                sx={{ 
-                  flex: { xs: 1, sm: 'none' }
-                }}
-              >
-                Get Meal Ideas
-              </Button>
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<PhotoCameraIcon />}
+                  onClick={() => router.push('/scan')}
+                  sx={{ 
+                    flex: { xs: 1, sm: 'none' }
+                  }}
+                >
+                  {t('ingredients.scanIngredients')}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<RestaurantIcon />}
+                  onClick={handleGetMealSuggestions}
+                  disabled={selectedIngredients.length === 0}
+                  sx={{ 
+                    flex: { xs: 1, sm: 'none' }
+                  }}
+                >
+                  Get Meal Ideas
+                </Button>
+              </>
             )}
           </Box>
         </Box>
@@ -328,6 +463,55 @@ export default function IngredientsPage() {
           </Grid>
         )}
       </Container>
+
+      {/* Add Manual Ingredient Dialog */}
+      <Dialog 
+        open={dialogState.open} 
+        onClose={() => setDialogState({ ...dialogState, open: false })}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Add Ingredient</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Ingredient Name"
+              value={dialogState.name}
+              onChange={(e) => setDialogState(prev => ({ ...prev, name: e.target.value }))}
+              fullWidth
+              autoFocus
+            />
+            <TextField
+              label="Amount"
+              type="number"
+              value={dialogState.quantity}
+              onChange={(e) => setDialogState(prev => ({ ...prev, quantity: e.target.value }))}
+              fullWidth
+            />
+            <TextField
+              select
+              label="Unit"
+              value={dialogState.unit}
+              onChange={(e) => setDialogState(prev => ({ ...prev, unit: e.target.value }))}
+              fullWidth
+            >
+              {Object.keys(UNIT_KEYS).map((unit) => (
+                <MenuItem key={unit} value={unit}>
+                  {t(UNIT_KEYS[unit as keyof typeof UNIT_KEYS][0])}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogState({ ...dialogState, open: false })}>
+            {t('common.cancel')}
+          </Button>
+          <Button onClick={handleManualAdd} variant="contained" color="primary">
+            {t('common.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 } 
