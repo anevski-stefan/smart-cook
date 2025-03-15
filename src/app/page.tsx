@@ -89,7 +89,7 @@ export default function Home() {
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
           p: { xs: 2, md: 4 },
           color: 'white',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
         }}
       >
         <Box

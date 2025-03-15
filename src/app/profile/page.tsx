@@ -26,18 +26,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { createClient } from '@supabase/supabase-js';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { DatePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-
-// Environment variables
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-// Create a single Supabase client instance to be reused
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Import the shared Supabase client
+import { supabase } from '@/utils/supabase-client';
 
 const categories = [
   'Weekly Calories',
@@ -80,6 +74,11 @@ export default function ProfilePage() {
   const [open, setOpen] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [currentGoalIndex, setCurrentGoalIndex] = useState<number | null>(null);
+  const [editingGoalIndex, setEditingGoalIndex] = useState<number | null>(null);
+  const [editingGoal, setEditingGoal] = useState<{
+    category: string;
+    description: string;
+  }>({ category: '', description: '' });
 
   useEffect(() => {
     // Load goals from Supabase or fallback to localStorage if table doesn't exist
@@ -109,7 +108,12 @@ export default function ProfilePage() {
                 }) => ({
                   category: goal.category,
                   description: goal.description,
-                  dates: goal.dates ? goal.dates.map((date: string) => new Date(date)) : undefined,
+                  dates: goal.dates ? goal.dates.map((date: string) => {
+                    // Ensure date strings are properly parsed to Date objects
+                    const parsedDate = new Date(date);
+                    // Check if the date is valid
+                    return isNaN(parsedDate.getTime()) ? null : parsedDate;
+                  }).filter(Boolean) : undefined, // Filter out any invalid dates
                   achieved: goal.achieved || false,
                 }));
                 setGoals(formattedGoals);
@@ -128,7 +132,12 @@ export default function ProfilePage() {
             id: goal.id,
             category: goal.category,
             description: goal.description,
-            dates: goal.dates ? goal.dates.map((date: string) => new Date(date)) : undefined,
+            dates: goal.dates ? goal.dates.map((date: string) => {
+              // Ensure date strings are properly parsed to Date objects
+              const parsedDate = new Date(date);
+              // Check if the date is valid
+              return isNaN(parsedDate.getTime()) ? null : parsedDate;
+            }).filter(Boolean) : undefined, // Filter out any invalid dates
             achieved: goal.achieved || false,
           }));
           setGoals(formattedGoals);
@@ -149,7 +158,12 @@ export default function ProfilePage() {
             }) => ({
               category: goal.category,
               description: goal.description,
-              dates: goal.dates ? goal.dates.map((date: string) => new Date(date)) : undefined,
+              dates: goal.dates ? goal.dates.map((date: string) => {
+                // Ensure date strings are properly parsed to Date objects
+                const parsedDate = new Date(date);
+                // Check if the date is valid
+                return isNaN(parsedDate.getTime()) ? null : parsedDate;
+              }).filter(Boolean) : undefined, // Filter out any invalid dates
               achieved: goal.achieved || false,
             }));
             setGoals(formattedGoals);
@@ -369,7 +383,13 @@ export default function ProfilePage() {
     }
   };
 
-  const handleClose = () => setOpen(false);
+  const handleClose = () => {
+    setOpen(false);
+    if (editingGoalIndex !== null) {
+      setEditingGoalIndex(null);
+      setEditingGoal({ category: '', description: '' });
+    }
+  };
 
   const handleDateChange = (date: Date | null) => {
     if (!date) return;
@@ -400,9 +420,20 @@ export default function ProfilePage() {
       return;
     }
 
+    // Filter out any invalid dates
+    const validDates = selectedDates.filter(date => date instanceof Date && !isNaN(date.getTime()));
+    
+    if (validDates.length === 0) {
+      setMessage({
+        type: 'error',
+        text: 'No valid dates selected.',
+      });
+      return;
+    }
+
     // First save the dates to our website (Supabase or localStorage)
     const updatedGoals = [...goals];
-    updatedGoals[currentGoalIndex].dates = selectedDates;
+    updatedGoals[currentGoalIndex].dates = validDates;
     setGoals(updatedGoals);
     
     // Save to Supabase or localStorage
@@ -412,9 +443,12 @@ export default function ProfilePage() {
         // Save to Supabase
         (async () => {
           try {
+            // Convert dates to ISO strings for Supabase
+            const dateStrings = validDates.map(date => date.toISOString());
+            
             const { error } = await supabase
               .from('weeklygoals')
-              .update({ dates: selectedDates.map(date => date.toISOString()) })
+              .update({ dates: dateStrings })
               .eq('id', goalId);
               
             if (error) {
@@ -441,9 +475,9 @@ export default function ProfilePage() {
     const goal = goals[currentGoalIndex];
     
     // Open only the first date in Google Calendar (user can add more manually)
-    if (selectedDates.length > 0) {
+    if (validDates.length > 0) {
       try {
-        const firstDate = selectedDates[0];
+        const firstDate = validDates[0];
         const startTime = firstDate.toISOString().replace(/[-:]/g, '').replace(/\.\d+/g, '');
         const endTime = new Date(firstDate.getTime() + 60 * 60 * 1000)
           .toISOString()
@@ -461,7 +495,7 @@ export default function ProfilePage() {
         
         setMessage({
           type: 'success',
-          text: `${selectedDates.length} date(s) saved and Google Calendar opened in a new tab!`,
+          text: `${validDates.length} date(s) saved and Google Calendar opened in a new tab!`,
         });
       } catch (calendarError: unknown) {
         console.error('Error opening Google Calendar:', calendarError);
@@ -477,15 +511,26 @@ export default function ProfilePage() {
 
   const handleOpenCalendar = (index: number) => {
     setCurrentGoalIndex(index);
-    // Initialize with existing dates for this goal if any
+    setEditingGoalIndex(null);
     setSelectedDates(goals[index].dates || []);
     setOpen(true);
   };
 
   const handleSaveDate = () => {
     if (selectedDates.length > 0 && currentGoalIndex !== null) {
+      // Filter out any invalid dates
+      const validDates = selectedDates.filter(date => date instanceof Date && !isNaN(date.getTime()));
+      
+      if (validDates.length === 0) {
+        setMessage({
+          type: 'error',
+          text: 'No valid dates selected.',
+        });
+        return;
+      }
+      
       const updatedGoals = [...goals];
-      updatedGoals[currentGoalIndex].dates = selectedDates;
+      updatedGoals[currentGoalIndex].dates = validDates;
       setGoals(updatedGoals);
       
       try {
@@ -495,28 +540,31 @@ export default function ProfilePage() {
           // Use async/await with try/catch for better error handling
           (async () => {
             try {
+              // Convert dates to ISO strings for Supabase
+              const dateStrings = validDates.map(date => date.toISOString());
+              
               const { error } = await supabase
                 .from('weeklygoals')
-                .update({ dates: selectedDates.map(date => date.toISOString()) })
+                .update({ dates: dateStrings })
                 .eq('id', goalId);
                 
               if (error) {
                 console.error('Error updating dates in Supabase:', error);
                 setMessage({
                   type: 'info',
-                  text: `${selectedDates.length} date(s) saved locally! (Database error: ${error.message})`,
+                  text: `${validDates.length} date(s) saved locally! (Database error: ${error.message})`,
                 });
               } else {
                 setMessage({
                   type: 'success',
-                  text: `${selectedDates.length} date(s) saved successfully!`,
+                  text: `${validDates.length} date(s) saved successfully!`,
                 });
               }
             } catch (updateError: unknown) {
               console.error('Error in Supabase update:', updateError);
               setMessage({
                 type: 'info',
-                text: `${selectedDates.length} date(s) saved locally! (Error: ${updateError instanceof Error ? updateError.message : 'Unknown error'})`,
+                text: `${validDates.length} date(s) saved locally! (Error: ${updateError instanceof Error ? updateError.message : 'Unknown error'})`,
               });
             }
           })();
@@ -524,7 +572,7 @@ export default function ProfilePage() {
           // No user or goal ID, just save locally
           setMessage({
             type: 'success',
-            text: `${selectedDates.length} date(s) saved locally!`,
+            text: `${validDates.length} date(s) saved locally!`,
           });
         }
         
@@ -538,7 +586,7 @@ export default function ProfilePage() {
         
         setMessage({
           type: 'info',
-          text: `${selectedDates.length} date(s) saved locally! (Error: ${error instanceof Error ? error.message : 'Unknown error'})`,
+          text: `${validDates.length} date(s) saved locally! (Error: ${error instanceof Error ? error.message : 'Unknown error'})`,
         });
       }
       
@@ -611,10 +659,89 @@ export default function ProfilePage() {
     });
   };
 
+  const handleEditGoal = (index: number) => {
+    setEditingGoalIndex(index);
+    setEditingGoal({
+      category: goals[index].category,
+      description: goals[index].description,
+    });
+    setOpen(true);
+  };
+
+  const handleSaveEditedGoal = async () => {
+    if (editingGoalIndex === null) return;
+    
+    if (!editingGoal.category || !editingGoal.description) {
+      setMessage({
+        type: 'error',
+        text: 'Please fill in all fields before saving the goal.',
+      });
+      return;
+    }
+    
+    const updatedGoals = [...goals];
+    updatedGoals[editingGoalIndex] = {
+      ...updatedGoals[editingGoalIndex],
+      category: editingGoal.category,
+      description: editingGoal.description,
+    };
+    
+    setGoals(updatedGoals);
+    
+    // Save to Supabase if available
+    if (user && updatedGoals[editingGoalIndex].id) {
+      const goalId = updatedGoals[editingGoalIndex].id;
+      
+      (async () => {
+        try {
+          const { error } = await supabase
+            .from('weeklygoals')
+            .update({
+              category: editingGoal.category,
+              description: editingGoal.description,
+            })
+            .eq('id', goalId);
+            
+          if (error) {
+            console.error('Error updating goal:', error);
+            setMessage({
+              type: 'info',
+              text: 'Goal updated locally! (Database error: ' + error.message + ')',
+            });
+          } else {
+            setMessage({
+              type: 'success',
+              text: 'Goal updated successfully!',
+            });
+          }
+        } catch (updateError: unknown) {
+          console.error('Error in updating goal:', updateError);
+          setMessage({
+            type: 'info',
+            text: 'Goal updated locally! (Error: ' + (updateError instanceof Error ? updateError.message : 'Unknown error') + ')',
+          });
+        }
+      })();
+    } else {
+      setMessage({
+        type: 'success',
+        text: 'Goal updated locally!',
+      });
+    }
+    
+    // Always save to localStorage as a backup
+    localStorage.setItem('weeklyGoals', serializeForStorage(updatedGoals));
+    
+    // Reset editing state
+    setEditingGoalIndex(null);
+    setEditingGoal({ category: '', description: '' });
+    setOpen(false);
+  };
+
   return (
     <ProtectedRoute>
       <Navbar />
-      <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Container maxWidth="md" sx={{ mt: 4, mb: 8 }}>
         <Paper elevation={3} sx={{ p: 4 }}>
           <Box component="form" onSubmit={handleSubmit}>
             <Grid container spacing={4}>
@@ -635,23 +762,31 @@ export default function ProfilePage() {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
+                  id="fullName"
                   label={t('profile.fullName')}
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleInputChange}
                   disabled={loading}
+                  InputLabelProps={{
+                    htmlFor: "fullName"
+                  }}
                 />
               </Grid>
 
               <Grid item xs={12}>
                 <TextField
                   fullWidth
+                  id="avatarUrl"
                   label={t('profile.avatarUrl')}
                   name="avatarUrl"
                   value={formData.avatarUrl}
                   onChange={handleInputChange}
                   disabled={loading}
                   helperText={t('profile.avatarHelp')}
+                  InputLabelProps={{
+                    htmlFor: "avatarUrl"
+                  }}
                 />
               </Grid>
 
@@ -670,11 +805,15 @@ export default function ProfilePage() {
               <Grid item xs={12}>
                 <TextField
                   select
+                  id="goalCategory"
                   label="Category"
                   value={goal}
                   onChange={(e) => setGoal(e.target.value)}
                   fullWidth
                   sx={{ mb: 2 }}
+                  InputLabelProps={{
+                    htmlFor: "goalCategory"
+                  }}
                 >
                   {categories.map((category) => (
                     <MenuItem key={category} value={category}>
@@ -686,6 +825,7 @@ export default function ProfilePage() {
 
               <Grid item xs={12}>
                 <TextField
+                  id="goalDescription"
                   label="Description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -693,6 +833,9 @@ export default function ProfilePage() {
                   multiline
                   rows={4}
                   sx={{ mb: 2 }}
+                  InputLabelProps={{
+                    htmlFor: "goalDescription"
+                  }}
                 />
               </Grid>
 
@@ -720,7 +863,7 @@ export default function ProfilePage() {
           </Box>
         </Paper>
 
-        <Paper elevation={3} sx={{ p: 2, mt: 4 }}>
+        <Paper elevation={3} sx={{ p: 2, mt: 4, mb: 4 }}>
           <Typography variant="h6" gutterBottom>
             Your Goals
           </Typography>
@@ -781,6 +924,14 @@ export default function ProfilePage() {
                     {goal.achieved ? "Achieved" : "Mark Achieved"}
                   </Button>
                   <Button 
+                    onClick={() => handleEditGoal(index)}
+                    color="info"
+                    size="small"
+                    sx={{ mr: 1 }}
+                  >
+                    Edit
+                  </Button>
+                  <Button 
                     onClick={() => handleOpenCalendar(index)}
                     size="small"
                     sx={{ mr: 1 }}
@@ -807,42 +958,97 @@ export default function ProfilePage() {
         </Paper>
 
         <Dialog open={open} onClose={handleClose}>
-          <DialogTitle>Select Multiple Days</DialogTitle>
+          <DialogTitle>{editingGoalIndex !== null ? "Edit Goal" : "Select Multiple Days"}</DialogTitle>
           <DialogContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Click on multiple dates to select them. Click again to deselect.
-            </Typography>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DatePicker
-                label="Select Dates"
-                value={null}
-                onChange={handleDateChange}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
-            </LocalizationProvider>
-            
-            {selectedDates.length > 0 && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2">Selected Dates:</Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                  {selectedDates.map((date, index) => (
-                    <Chip 
-                      key={index} 
-                      label={date.toLocaleDateString()} 
-                      onDelete={() => {
-                        setSelectedDates(selectedDates.filter((_, i) => i !== index));
-                      }}
-                      size="small"
-                    />
+            {editingGoalIndex !== null ? (
+              <Box sx={{ pt: 1 }}>
+                <TextField
+                  select
+                  id="editGoalCategory"
+                  label="Category"
+                  value={editingGoal.category}
+                  onChange={(e) => setEditingGoal({...editingGoal, category: e.target.value})}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                  InputLabelProps={{
+                    htmlFor: "editGoalCategory"
+                  }}
+                >
+                  {categories.map((category) => (
+                    <MenuItem key={category} value={category}>
+                      {category}
+                    </MenuItem>
                   ))}
-                </Box>
+                </TextField>
+                
+                <TextField
+                  id="editGoalDescription"
+                  label="Description"
+                  value={editingGoal.description}
+                  onChange={(e) => setEditingGoal({...editingGoal, description: e.target.value})}
+                  fullWidth
+                  multiline
+                  rows={4}
+                  sx={{ mb: 2 }}
+                  InputLabelProps={{
+                    htmlFor: "editGoalDescription"
+                  }}
+                />
               </Box>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Click on multiple dates to select them. Click again to deselect.
+                </Typography>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    label="Select Dates"
+                    value={null}
+                    onChange={handleDateChange}
+                    slotProps={{ 
+                      textField: { 
+                        fullWidth: true,
+                        id: "datePicker",
+                        InputLabelProps: {
+                          htmlFor: "datePicker"
+                        }
+                      } 
+                    }}
+                  />
+                </LocalizationProvider>
+                
+                {selectedDates.length > 0 && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2">Selected Dates:</Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                      {selectedDates.map((date, index) => (
+                        <Chip 
+                          key={index} 
+                          label={date.toLocaleDateString()} 
+                          onDelete={() => {
+                            setSelectedDates(selectedDates.filter((_, i) => i !== index));
+                          }}
+                          size="small"
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </>
             )}
           </DialogContent>
           <DialogActions>
             <Button onClick={handleClose}>Cancel</Button>
-            <Button onClick={handleSaveDate}>Save Dates</Button>
-            <Button onClick={handleSaveToGoogleCalendar}>Save to Google Calendar</Button>
+            {editingGoalIndex !== null ? (
+              <Button onClick={handleSaveEditedGoal} color="primary" variant="contained">
+                Save Changes
+              </Button>
+            ) : (
+              <>
+                <Button onClick={handleSaveDate}>Save Dates</Button>
+                <Button onClick={handleSaveToGoogleCalendar}>Save to Google Calendar</Button>
+              </>
+            )}
           </DialogActions>
         </Dialog>
 
