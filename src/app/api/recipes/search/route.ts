@@ -144,27 +144,27 @@ function extractInstructionsFromMealDB(instructions: string): string[] {
     .filter(step => step.length > 0);
 }
 
-type Difficulty = 'Easy' | 'Medium' | 'Hard';
+type DifficultyLevel = 'easy' | 'medium' | 'hard';
 
-function getDifficulty(readyInMinutes: number, ingredientCount: number): Difficulty {
+function getDifficulty(readyInMinutes: number, ingredientCount: number): DifficultyLevel {
   // Log the inputs for debugging
   console.log(`Calculating difficulty - Time: ${readyInMinutes}min, Ingredients: ${ingredientCount}`);
   
   // Easy: Quick recipes with few ingredients
   if (readyInMinutes <= 30 && ingredientCount <= 6) {
-    console.log('→ Easy (quick and simple)');
-    return 'Easy';
+    console.log('→ easy (quick and simple)');
+    return 'easy';
   }
   
   // Hard: Long cooking time OR many ingredients
   if (readyInMinutes > 60 || ingredientCount >= 10) {
-    console.log('→ Hard (long cooking time or complex)');
-    return 'Hard';
+    console.log('→ hard (long cooking time or complex)');
+    return 'hard';
   }
   
   // Medium: Everything else
-  console.log('→ Medium (moderate complexity)');
-  return 'Medium';
+  console.log('→ medium (moderate complexity)');
+  return 'medium';
 }
 
 function getCookingTime(category: string, instructions: string): number {
@@ -188,7 +188,7 @@ function recipeMatchesSearch(meal: MealDBRecipe, searchTerm: string): boolean {
   return false;
 }
 
-function filterRecipesByComplexity(recipe: Recipe, selectedComplexity: Difficulty[]): boolean {
+function filterRecipesByComplexity(recipe: Recipe, selectedComplexity: DifficultyLevel[]): boolean {
   if (selectedComplexity.length === 0) return true;
   
   const recipeDifficulty = recipe.difficulty;
@@ -219,19 +219,19 @@ export async function GET(request: Request) {
     const rawComplexity = searchParams.get('complexity');
     console.log('Raw complexity from URL:', rawComplexity);
     
-    const complexity: Difficulty[] = (rawComplexity?.split(',') || [])
+    const complexity: DifficultyLevel[] = (rawComplexity?.split(',') || [])
       .map(c => c.trim().toLowerCase())
       .map(c => {
         switch (c) {
-          case 'easy': return 'Easy';
-          case 'medium': return 'Medium';
-          case 'hard': return 'Hard';
+          case 'easy': return 'easy';
+          case 'medium': return 'medium';
+          case 'hard': return 'hard';
           default:
             console.log(`Skipping invalid complexity value: ${c}`);
             return null;
         }
       })
-      .filter((c): c is Difficulty => c !== null);
+      .filter((c): c is DifficultyLevel => c !== null);
 
     console.log('Active complexity filters:', complexity);
 

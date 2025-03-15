@@ -5,7 +5,7 @@ import type { Recipe, RecipeIngredient, Instruction } from '@/types/recipe';
 import { createClient } from '@/utils/supabase/server';
 
 interface RecipeWithUser extends Recipe {
-  users: {
+  user: {
     email: string;
   };
 }
@@ -20,7 +20,7 @@ export default async function RecipePage({
   // Fetch recipe
   const { data: recipe, error } = await supabase
     .from('recipes')
-    .select('*, users(email)')
+    .select('*, user:user_id(email)')
     .eq('id', params.id)
     .single<RecipeWithUser>();
 
@@ -30,7 +30,7 @@ export default async function RecipePage({
 
   // Check if current user is the owner
   const { data: { session } } = await supabase.auth.getSession();
-  const isOwner = session?.user.id === recipe.userId;
+  const isOwner = session?.user.id === recipe.user_id;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -140,7 +140,7 @@ export default async function RecipePage({
       </div>
 
       <div className="mt-8 border-t pt-4 text-sm text-gray-500">
-        <p>Created by {recipe.users.email}</p>
+        <p>Created by {recipe.user.email}</p>
       </div>
     </div>
   );
