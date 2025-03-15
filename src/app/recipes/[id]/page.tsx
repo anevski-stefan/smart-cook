@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { Recipe, RecipeIngredient, Instruction } from '@/types/recipe';
 import { createClient } from '@/utils/supabase/server';
+import RecipeDetailClient from '@/components/RecipeDetailClient';
 
 interface RecipeWithUser extends Recipe {
   user?: {
@@ -22,7 +23,7 @@ async function fetchMealDBRecipe(id: string): Promise<Recipe | null> {
     
     const meal = data.meals[0];
     
-    // Extract ingredients
+    // Extract ingredients with guaranteed IDs
     const ingredients: RecipeIngredient[] = [];
     for (let i = 1; i <= 20; i++) {
       const ingredient = meal[`strIngredient${i}`];
@@ -38,13 +39,31 @@ async function fetchMealDBRecipe(id: string): Promise<Recipe | null> {
       }
     }
     
-    // Extract instructions
+    // Add nutritional info estimation
+    const ingredientNames = Array.from({ length: 20 }, (_, i) => meal[`strIngredient${i + 1}`])
+      .filter((name): name is string => !!name);
+    const nutritionalInfo = estimateNutritionalInfo(ingredientNames);
+    
+    // Add duration estimation to instructions with guaranteed IDs
     const instructions: Instruction[] = meal.strInstructions
       .split(/\r\n|\n|\r/)
-      .map((step: string, index: number) => ({
-        id: `${meal.idMeal}-step-${index + 1}`,
-        text: step.trim()
-      }))
+      .map((step: string, index: number) => {
+        const text = step.trim();
+        // Try to find duration in the step
+        const durationMatch = text.match(/(\d+)[\s-]*(minutes?|mins?|hours?)/i);
+        const duration = durationMatch ? 
+          (durationMatch[2].toLowerCase().startsWith('hour') ? 
+            parseInt(durationMatch[1]) * 60 : 
+            parseInt(durationMatch[1])) : 
+          null;
+
+        return {
+          id: `${meal.idMeal}-step-${index + 1}`,
+          text,
+          duration: duration || undefined,
+          timerRequired: duration !== null || stepRequiresTimer(text)
+        };
+      })
       .filter((step: Instruction) => step.text.length > 0);
     
     return {
@@ -57,6 +76,7 @@ async function fetchMealDBRecipe(id: string): Promise<Recipe | null> {
       cuisine: meal.strArea || 'International',
       difficulty: 'medium', // Default value
       ingredients,
+      nutritionalInfo,
       instructions,
       cuisine_type: meal.strArea,
       dietary_restrictions: []
@@ -65,6 +85,67 @@ async function fetchMealDBRecipe(id: string): Promise<Recipe | null> {
     console.error('Error fetching MealDB recipe:', error);
     return null;
   }
+}
+
+// Helper functions for recipe processing
+function stepRequiresTimer(step: string): boolean {
+  const text = step.toLowerCase();
+  return text.includes('minute') || 
+         text.includes('min') || 
+         text.includes('hour') ||
+         text.includes('until') ||
+         text.includes('boil') ||
+         text.includes('simmer') ||
+         text.includes('bake') ||
+         text.includes('roast') ||
+         text.includes('rest') ||
+         text.includes('cool');
+}
+
+function estimateNutritionalInfo(ingredients: string[]) {
+  const NUTRITION_ESTIMATES: { [key: string]: { calories: number; protein: number; carbs: number; fat: number } } = {
+    'meat': { calories: 250, protein: 25, carbs: 0, fat: 15 },
+    'fish': { calories: 200, protein: 22, carbs: 0, fat: 12 },
+    'vegetable': { calories: 50, protein: 2, carbs: 10, fat: 0 },
+    'fruit': { calories: 60, protein: 1, carbs: 15, fat: 0 },
+    'grain': { calories: 350, protein: 8, carbs: 70, fat: 2 },
+    'dairy': { calories: 150, protein: 8, carbs: 12, fat: 8 },
+    'spice': { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    'oil': { calories: 900, protein: 0, carbs: 0, fat: 100 },
+    'other': { calories: 100, protein: 2, carbs: 15, fat: 5 }
+  };
+
+  function categorizeIngredient(ingredient: string): string {
+    ingredient = ingredient.toLowerCase();
+    if (/chicken|beef|pork|lamb|meat|goat/.test(ingredient)) return 'meat';
+    if (/fish|salmon|tuna|shrimp|seafood/.test(ingredient)) return 'fish';
+    if (/carrot|onion|garlic|pepper|vegetable|celery|lettuce|spinach|broccoli/.test(ingredient)) return 'vegetable';
+    if (/apple|banana|orange|fruit|berry|lemon/.test(ingredient)) return 'fruit';
+    if (/flour|rice|pasta|bread|oat|wheat|corn|grain/.test(ingredient)) return 'grain';
+    if (/milk|cheese|cream|yogurt|butter/.test(ingredient)) return 'dairy';
+    if (/salt|pepper|spice|powder|seasoning/.test(ingredient)) return 'spice';
+    if (/oil|olive|vegetable oil|coconut oil/.test(ingredient)) return 'oil';
+    return 'other';
+  }
+
+  const total = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  ingredients.forEach(ingredient => {
+    if (!ingredient) return;
+    const category = categorizeIngredient(ingredient);
+    const values = NUTRITION_ESTIMATES[category];
+    // Assume average portion size of 100g per ingredient
+    total.calories += values.calories;
+    total.protein += values.protein;
+    total.carbs += values.carbs;
+    total.fat += values.fat;
+  });
+  // Adjust for 4 servings
+  return {
+    calories: Math.round(total.calories / 4),
+    protein: Math.round(total.protein / 4),
+    carbs: Math.round(total.carbs / 4),
+    fat: Math.round(total.fat / 4)
+  };
 }
 
 export default async function RecipePage({
@@ -164,6 +245,18 @@ export default async function RecipePage({
             </div>
           </div>
 
+          <div className="mb-6">
+            <h2 className="mb-4 text-xl font-semibold">Ingredients</h2>
+            <ul className="space-y-2">
+              {recipe.ingredients.map((ingredient: RecipeIngredient, index: number) => (
+                <li key={ingredient.id || index} className="flex items-center gap-2">
+                  <span className="font-medium">{ingredient.amount} {ingredient.unit}</span>
+                  <span>{ingredient.name}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {recipe.dietary_restrictions && recipe.dietary_restrictions.length > 0 && (
             <div className="mb-6">
               <h3 className="mb-2 text-sm font-medium text-gray-500">Dietary Information</h3>
@@ -182,29 +275,7 @@ export default async function RecipePage({
         </div>
 
         <div>
-          <div className="mb-8">
-            <h2 className="mb-4 text-xl font-semibold">Ingredients</h2>
-            <ul className="space-y-2">
-              {recipe.ingredients.map((ingredient: RecipeIngredient, index: number) => (
-                <li key={ingredient.id || index} className="flex items-center gap-2">
-                  <span className="font-medium">{ingredient.amount} {ingredient.unit}</span>
-                  <span>{ingredient.name}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="mb-4 text-xl font-semibold">Instructions</h2>
-            <ol className="space-y-4">
-              {recipe.instructions.map((instruction: Instruction, index: number) => (
-                <li key={instruction.id || index} className="flex gap-4">
-                  <span className="font-medium text-gray-400">{index + 1}.</span>
-                  <span>{instruction.text}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
+          <RecipeDetailClient recipe={recipe} />
         </div>
       </div>
 
