@@ -14,7 +14,7 @@ import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import { LanguageSelector } from '@/components/LanguageSelector';
+// import { LanguageSelector } from '@/components/LanguageSelector';
 
 
 export default function Home() {
@@ -86,9 +86,10 @@ export default function Home() {
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           borderRadius: 2,
-          boxShadow: 3,
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
           p: { xs: 2, md: 4 },
           color: 'white',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
         }}
       >
         <Box
