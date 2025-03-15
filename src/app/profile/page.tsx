@@ -24,7 +24,6 @@ import {
 } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { DatePicker } from '@mui/x-date-pickers';
@@ -740,7 +739,6 @@ export default function ProfilePage() {
 
   return (
     <ProtectedRoute>
-      <Navbar />
       <Container maxWidth="md" sx={{ mt: 4, mb: 8 }}>
         <Paper elevation={3} sx={{ p: 4 }}>
           <Box component="form" onSubmit={handleSubmit}>
