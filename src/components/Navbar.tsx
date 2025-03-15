@@ -81,15 +81,15 @@ export default function Navbar() {
     if (path === '/sign-out') {
       signOut();
     } else if (path === '/profile') {
-      router.push('/account/profile');
+      router.push('/profile');
     } else if (path === '/saved-recipes') {
-      router.push('/account/saved-recipes');
+      router.push('/saved-recipes');
     } else if (path === '/shopping-list') {
-      router.push('/account/shopping-list');
+      router.push('/shopping-list');
     } else if (path === '/ingredients') {
-      router.push('/account/ingredients');
+      router.push('/ingredients');
     } else if (path === '/my-recipes') {
-      router.push('/account/my-recipes');
+      router.push('/recipes/my-recipes');
     } else {
       router.push(path);
     }
