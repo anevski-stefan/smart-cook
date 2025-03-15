@@ -37,6 +37,7 @@ import { supabase } from '@/utils/supabase-client';
 import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
+import RecipeSuggestions from '@/components/RecipeSuggestions';
 
 interface ScannedIngredient {
   id: string;
@@ -82,6 +83,7 @@ const ScanPage = () => {
     amount: '1',
     unit: 'piece',
   });
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const webcamRef = useRef<Webcam>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -347,7 +349,7 @@ const ScanPage = () => {
   return (
     <>
       <Navbar />
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           {t('scan.title')}
         </Typography>
@@ -582,6 +584,62 @@ const ScanPage = () => {
                   </Box>
                 )}
               </List>
+
+              {scannedIngredients.length > 0 && (
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 2,
+                    mt: 2,
+                    pt: 2,
+                    borderTop: '1px solid',
+                    borderColor: 'divider'
+                  }}
+                >
+                  <Typography variant="subtitle1" align="center">
+                    Ready to discover recipes with your ingredients?
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="large"
+                    onClick={() => setShowSuggestions(true)}
+                    disabled={scannedIngredients.length === 0}
+                    sx={{
+                      minWidth: 250,
+                      py: 1.5,
+                      px: 4,
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontSize: '1.1rem',
+                      fontWeight: 500,
+                      boxShadow: 2,
+                      '&:hover': {
+                        boxShadow: 4
+                      }
+                    }}
+                  >
+                    Get Meal Suggestions
+                  </Button>
+                </Box>
+              )}
+
+              {showSuggestions && scannedIngredients.length > 0 && (
+                <Box 
+                  sx={{ 
+                    mt: 3,
+                    pt: 3,
+                    borderTop: '1px solid',
+                    borderColor: 'divider'
+                  }}
+                >
+                  <RecipeSuggestions 
+                    ingredients={scannedIngredients.map(ing => ing.name)} 
+                  />
+                </Box>
+              )}
             </Paper>
           </Box>
         </Box>

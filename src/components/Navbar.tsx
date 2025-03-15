@@ -24,8 +24,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSelector } from './LanguageSelector';
 
 type NavigationPage = 'search' | 'scan' | 'education' | 'chat';
-type SettingsKey = 'profile' | 'saved-recipes' | 'shopping-list' | 'ingredients' | 'my-recipes' | 'my-meals' | 'sign-out';
-type SettingsLabel = 'navigation.profile' | 'navigation.savedRecipes' | 'navigation.shoppingList' | 'recipe.ingredients' | 'navigation.myRecipes' | 'navigation.myMeals' | 'common.signOut';
+type SettingsKey = 'profile' | 'saved-recipes' | 'shopping-list' | 'ingredients' | 'basic-ingredients' | 'my-recipes' | 'my-meals' | 'sign-out';
+type SettingsLabel = 'navigation.profile' | 'navigation.savedRecipes' | 'navigation.shoppingList' | 'recipe.ingredients' | 'navigation.basicIngredients' | 'navigation.myRecipes' | 'navigation.myMeals' | 'common.signOut';
 
 interface SettingsItem {
   key: SettingsKey;
@@ -40,6 +40,7 @@ const settings: SettingsItem[] = [
   { key: 'saved-recipes', label: 'navigation.savedRecipes' },
   { key: 'shopping-list', label: 'navigation.shoppingList' },
   { key: 'ingredients', label: 'recipe.ingredients' },
+  { key: 'basic-ingredients', label: 'navigation.basicIngredients' },
   { key: 'sign-out', label: 'common.signOut' }
 ];
 
@@ -112,7 +113,7 @@ export default function Navbar() {
   return (
     <AppBar position="sticky" sx={{ bgcolor: 'primary.main' }}>
       <Container maxWidth="xl">
-        <Toolbar disableGutters>
+        <Toolbar disableGutters sx={{ minHeight: { xs: 56, sm: 64 } }}>
           <RestaurantIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1, color: 'white' }} />
           <Typography
             variant="h6"
@@ -133,11 +134,11 @@ export default function Navbar() {
           <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
             <IconButton
               size="large"
-              aria-label="account of current user"
+              aria-label="menu"
               aria-controls="menu-appbar"
               aria-haspopup="true"
               onClick={handleOpenNavMenu}
-              color="inherit"
+              sx={{ color: 'white', p: 1 }}
             >
               <MenuIcon />
             </IconButton>
@@ -157,10 +158,19 @@ export default function Navbar() {
               onClose={handleCloseNavMenu}
               sx={{
                 display: { xs: 'block', md: 'none' },
+                '& .MuiPaper-root': {
+                  width: '100%',
+                  maxWidth: '300px',
+                  mt: 1
+                }
               }}
             >
               {pages.map((page) => (
-                <MenuItem key={page} onClick={() => handleNavigation(`/${page}`)}>
+                <MenuItem 
+                  key={page} 
+                  onClick={() => handleNavigation(`/${page}`)}
+                  sx={{ py: 1.5 }}
+                >
                   <Typography textAlign="center">
                     {t(getTranslationKey(page))}
                   </Typography>
@@ -168,30 +178,34 @@ export default function Navbar() {
               ))}
             </Menu>
           </Box>
-          <RestaurantIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1, color: 'white' }} />
-          <Typography
-            variant="h5"
-            noWrap
-            component="a"
-            href="/"
-            sx={{
-              mr: 2,
-              display: { xs: 'flex', md: 'none' },
-              flexGrow: 1,
-              fontWeight: 700,
-              color: 'white',
-              textDecoration: 'none',
-            }}
-          >
-            Smart Cook
-          </Typography>
-          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: { xs: 1, md: 0 } }}>
+            <RestaurantIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1, color: 'white' }} />
+            <Typography
+              variant="h6"
+              noWrap
+              component="a"
+              href="/"
+              sx={{
+                display: { xs: 'flex', md: 'none' },
+                fontWeight: 700,
+                color: 'white',
+                textDecoration: 'none',
+                fontSize: { xs: '1.1rem', sm: '1.25rem' }
+              }}
+            >
+              Smart Cook
+            </Typography>
+          </Box>
+
+          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' }, ml: 2 }}>
             {pages.map((page) => (
               <Button
                 key={page}
                 onClick={() => handleNavigation(`/${page}`)}
                 sx={{
                   my: 2,
+                  px: 2,
                   color: 'white',
                   display: 'block',
                   '&:hover': {
@@ -204,18 +218,31 @@ export default function Navbar() {
             ))}
           </Box>
 
-          <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: { xs: 1, sm: 2 },
+            ml: { xs: 1, sm: 2 }
+          }}>
             <LanguageSelector />
             
             {user ? (
               <>
                 <Tooltip title="Open settings">
-                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar src={user?.user_metadata?.avatar_url} />
+                  <IconButton onClick={handleOpenUserMenu} sx={{ p: { xs: 0.5, sm: 1 } }}>
+                    <Avatar 
+                      src={user?.user_metadata?.avatar_url}
+                      sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
+                    />
                   </IconButton>
                 </Tooltip>
                 <Menu
-                  sx={{ mt: '45px' }}
+                  sx={{ 
+                    mt: '45px',
+                    '& .MuiPaper-root': {
+                      width: '200px'
+                    }
+                  }}
                   id="menu-appbar"
                   anchorEl={anchorElUser}
                   anchorOrigin={{
@@ -241,6 +268,7 @@ export default function Navbar() {
                           handleCloseUserMenu();
                         }
                       }}
+                      sx={{ py: 1.5 }}
                     >
                       <Typography textAlign="center">{t(setting.label)}</Typography>
                     </MenuItem>
@@ -260,6 +288,13 @@ export default function Navbar() {
                   },
                   textTransform: 'none',
                   fontWeight: 500,
+                  fontSize: { xs: '0.8rem', sm: '0.875rem', md: '1rem' },
+                  py: { xs: 0.25, sm: 0.5, md: 0.75 },
+                  px: { xs: 1, sm: 1.5, md: 2 },
+                  minWidth: { xs: '72px', sm: 'auto' },
+                  height: { xs: '32px', sm: '36px', md: '40px' },
+                  lineHeight: 1,
+                  borderWidth: { xs: 1, sm: 2 }
                 }}
               >
                 {t('common.signIn')}

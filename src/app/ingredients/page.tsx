@@ -15,15 +15,18 @@ import {
   Alert,
   Chip,
   Button,
+  Checkbox,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import KitchenIcon from '@mui/icons-material/Kitchen';
 import AddIcon from '@mui/icons-material/Add';
+import RestaurantIcon from '@mui/icons-material/Restaurant';
 import { supabase } from '@/utils/supabase-client';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
+import RecipeSuggestions from '@/components/RecipeSuggestions';
 
 interface UserIngredient {
   id: string;
@@ -54,6 +57,8 @@ export default function IngredientsPage() {
   const [ingredients, setIngredients] = useState<UserIngredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Memoize the error messages
   const errorMessages = useMemo(() => ({
@@ -133,10 +138,22 @@ export default function IngredientsPage() {
     return unit; // Fallback to original unit if no translation found
   }, [t]);
 
+  const handleIngredientSelect = (ingredientName: string) => {
+    setSelectedIngredients(prev => 
+      prev.includes(ingredientName)
+        ? prev.filter(name => name !== ingredientName)
+        : [...prev, ingredientName]
+    );
+  };
+
+  const handleGetMealSuggestions = () => {
+    setShowSuggestions(true);
+  };
+
   return (
     <>
       <Navbar />
-      <Container maxWidth="lg" sx={{ mt: 4, px: { xs: 2, sm: 3 } }}>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 6, px: { xs: 2, sm: 3 } }}>
         <Box 
           display="flex" 
           flexDirection={{ xs: 'column', sm: 'row' }} 
@@ -165,16 +182,32 @@ export default function IngredientsPage() {
               {t('ingredients.subtitle')}
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => router.push('/scan')}
-            sx={{ 
-              minWidth: { xs: '100%', sm: 'auto' }
-            }}
-          >
-            {t('ingredients.addIngredients')}
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', sm: 'auto' } }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => router.push('/scan')}
+              sx={{ 
+                flex: { xs: 1, sm: 'none' }
+              }}
+            >
+              {t('ingredients.addIngredients')}
+            </Button>
+            {ingredients.length > 0 && (
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<RestaurantIcon />}
+                onClick={handleGetMealSuggestions}
+                disabled={selectedIngredients.length === 0}
+                sx={{ 
+                  flex: { xs: 1, sm: 'none' }
+                }}
+              >
+                Get Meal Ideas
+              </Button>
+            )}
+          </Box>
         </Box>
 
         {loading ? (
@@ -229,6 +262,11 @@ export default function IngredientsPage() {
                         py: { xs: 2, sm: 2.5 },
                       }}
                     >
+                      <Checkbox
+                        checked={selectedIngredients.includes(ingredient.name)}
+                        onChange={() => handleIngredientSelect(ingredient.name)}
+                        sx={{ mr: 1 }}
+                      />
                       <ListItemText
                         primary={
                           <Typography 
@@ -283,6 +321,12 @@ export default function IngredientsPage() {
                 </List>
               </Paper>
             </Grid>
+            
+            {showSuggestions && selectedIngredients.length > 0 && (
+              <Grid item xs={12}>
+                <RecipeSuggestions ingredients={selectedIngredients} />
+              </Grid>
+            )}
           </Grid>
         )}
       </Container>

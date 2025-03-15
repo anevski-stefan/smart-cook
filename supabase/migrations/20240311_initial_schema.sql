@@ -238,3 +238,35 @@ $$ LANGUAGE sql SECURITY DEFINER;
    using (bucket_id = 'images');
 
    
+create table basic_ingredients (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS (Row Level Security)
+alter table basic_ingredients enable row level security;
+
+-- Create policy to allow all authenticated users to read basic ingredients
+create policy "Allow all users to read basic ingredients"
+  on basic_ingredients for select
+  to authenticated
+  using (true);
+
+-- Create policy to allow authenticated users to insert basic ingredients
+create policy "Allow authenticated users to insert basic ingredients"
+  on basic_ingredients for insert
+  to authenticated
+  with check (true);
+
+-- Create policy to allow authenticated users to update basic ingredients
+create policy "Allow authenticated users to update basic ingredients"
+  on basic_ingredients for update
+  to authenticated
+  using (true);
+
+-- Create policy to allow authenticated users to delete basic ingredients
+create policy "Allow authenticated users to delete basic ingredients"
+  on basic_ingredients for delete
+  to authenticated
+  using (true);

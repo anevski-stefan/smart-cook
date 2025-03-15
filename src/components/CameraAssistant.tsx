@@ -1,272 +1,226 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Box, Typography, Paper, Button, CircularProgress } from '@mui/material';
+import { useEffect, useRef, useState } from 'react';
+import { Box, Typography, Paper, Button, CircularProgress, Chip } from '@mui/material';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PhotoCamera } from '@mui/icons-material';
+import RecipeSuggestions from './RecipeSuggestions';
 
 // Initialize Gemini outside component to avoid re-creation
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
 
-interface CameraAssistantProps {
-  currentStep?: {
-    id: number;
-    text: string;
-    description?: string;
-  };
-  ingredients?: Array<{
-    name: string;
-    amount: string;
-    unit: string;
-  }>;
-}
-
-export default function CameraAssistant({ currentStep, ingredients }: CameraAssistantProps) {
+export default function CameraAssistant() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [analysis, setAnalysis] = useState<string>('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [scannedIngredients, setScannedIngredients] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const setupCamera = async () => {
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const constraints = {
-          video: {
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          streamRef.current = stream;
-          
-          // Set camera active first to ensure UI updates
-          setIsCameraActive(true);
-          
-          // Wait for video to be ready
-          await new Promise((resolve) => {
-            if (videoRef.current) {
-              videoRef.current.onloadedmetadata = () => {
-                videoRef.current!.play().then(() => resolve(true));
-              };
-            }
-          });
-        }
-      } else {
-        console.error('Media devices not supported');
-        setAnalysis('Error: Camera not supported on this device or browser.');
-        setIsCameraActive(false);
-      }
-    } catch (err) {
-      console.error('Error accessing camera:', err);
-      setAnalysis('Error: Could not access camera. Please check camera permissions and try again.');
-      setIsCameraActive(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-      setIsCameraActive(false);
-    }
-  };
-
-  // Cleanup function when component unmounts
   useEffect(() => {
     return () => {
-      stopCamera();
+      // Cleanup: stop camera stream when component unmounts
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
     };
   }, []);
 
-  const captureAndAnalyze = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    setIsAnalyzing(true);
+  const setupCamera = async () => {
     try {
-      // Capture current frame
-      const context = canvasRef.current.getContext('2d');
-      if (!context) return;
-
-      // Match canvas size to video
-      canvasRef.current.width = videoRef.current.videoWidth;
-      canvasRef.current.height = videoRef.current.videoHeight;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
       
-      // Draw the current video frame
-      context.drawImage(videoRef.current, 0, 0);
-
-      // Convert canvas to blob
-      const blob = await new Promise<Blob>((resolve) => 
-        canvasRef.current!.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.95)
-      );
-
-      // Create a FileReader to convert blob to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
-        const base64data = reader.result as string;
-
-        // Initialize Gemini Vision model
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-        // Create context-aware prompt
-        const prompt = [
-          "You are a professional cooking assistant. Analyze this cooking scene in the context of the current recipe step and ingredients.",
-          currentStep ? `Current step: ${currentStep.text}` : "",
-          currentStep?.description ? `Step description: ${currentStep.description}` : "",
-          ingredients ? `Required ingredients: ${ingredients.map(i => `${i.amount} ${i.unit} ${i.name}`).join(', ')}` : "",
-          "",
-          "Provide detailed feedback about:",
-          "1. Progress on current step (if applicable)",
-          "2. Ingredient preparation and measurements",
-          "3. Cooking technique assessment",
-          "4. Safety concerns",
-          "5. Specific suggestions for improvement",
-          "",
-          "Focus on helping the cook complete the current step successfully. If you can't clearly see something important, say so.",
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: base64data.split(',')[1]
-            }
-          }
-        ].filter(Boolean);
-
-        try {
-          const result = await model.generateContent(prompt);
-          const response = await result.response;
-          setAnalysis(response.text());
-        } catch (error) {
-          console.error('Error analyzing image with Gemini:', error);
-          setAnalysis('Error analyzing image with Gemini. Please try again.');
-        }
-      };
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setIsCameraActive(true);
+      }
     } catch (error) {
-      console.error('Error capturing image:', error);
-      setAnalysis('Error capturing image. Please try again.');
+      console.error('Error accessing camera:', error);
+    }
+  };
+
+  const analyzeImage = async (imageData: string) => {
+    try {
+      setIsAnalyzing(true);
+      const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+
+      const prompt = `You are a cooking assistant. Look at this image and:
+      1. Identify all food ingredients visible in the image
+      2. For each ingredient, determine its approximate quantity if visible
+      3. Return a JSON array of objects with 'name' and 'quantity' properties
+      
+      Example response format:
+      [
+        {"name": "tomato", "quantity": "2 pieces"},
+        {"name": "onion", "quantity": "1 medium"},
+        {"name": "garlic", "quantity": "3 cloves"}
+      ]
+      
+      Be specific with quantities when visible (e.g., '2 pieces', '500g', '3 tablespoons').
+      If quantity is not clear, just include the name.`;
+
+      const result = await model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: imageData.split(',')[1]
+          }
+        }
+      ]);
+
+      const response = await result.response;
+      const text = response.text();
+      
+      try {
+        const detectedIngredients = JSON.parse(text);
+        if (Array.isArray(detectedIngredients)) {
+          setScannedIngredients(prev => {
+            // Add new ingredients while avoiding duplicates
+            const newIngredients = detectedIngredients
+              .map(item => typeof item === 'object' ? item.name : item)
+              .filter(ingredient => 
+                !prev.includes(ingredient.toLowerCase())
+              );
+            return [...prev, ...newIngredients];
+          });
+        }
+      } catch (error) {
+        console.error('Error parsing ingredients:', error);
+      }
+
+    } catch (error) {
+      console.error('Error analyzing image:', error);
     } finally {
       setIsAnalyzing(false);
     }
-  }, [currentStep, ingredients]);
+  };
+
+  const captureImage = async () => {
+    if (!videoRef.current) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL('image/jpeg');
+    
+    // Analyze the captured image
+    await analyzeImage(imageData);
+  };
 
   return (
-    <Paper elevation={3} sx={{ p: 2, position: 'relative' }}>
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Smart Cooking Assistant
-        </Typography>
-        {currentStep && (
-          <Typography 
-            variant="subtitle2" 
-            color="text.secondary"
-            component="div"
+    <Paper sx={{ p: 2 }}>
+      <Box sx={{ position: 'relative' }}>
+        <video
+          ref={videoRef}
+          style={{
+            width: '100%',
+            maxHeight: '400px',
+            display: isCameraActive ? 'block' : 'none'
+          }}
+          autoPlay
+          playsInline
+        />
+
+        {isCameraActive ? (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={captureImage}
+            disabled={isAnalyzing}
+            startIcon={<PhotoCamera />}
+            sx={{ mt: 2 }}
           >
-            Current Step: {currentStep.text}
-          </Typography>
+            {isAnalyzing ? (
+              <>
+                <CircularProgress size={24} sx={{ mr: 1 }} />
+                Analyzing...
+              </>
+            ) : 'Capture Ingredient'}
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={setupCamera}
+            startIcon={<PhotoCamera />}
+          >
+            Start Camera
+          </Button>
         )}
       </Box>
-      
-      <Box sx={{ position: 'relative', width: '100%', height: '400px', backgroundColor: '#000' }}>
-        {!isCameraActive ? (
+
+      {scannedIngredients.length > 0 && (
+        <Box mt={4}>
+          <Typography variant="h6" gutterBottom>
+            Scanned Ingredients
+          </Typography>
+          <Box display="flex" gap={1} flexWrap="wrap" mb={3}>
+            {scannedIngredients.map((ingredient, index) => (
+              <Chip
+                key={index}
+                label={ingredient}
+                onDelete={() => {
+                  setScannedIngredients(prev => prev.filter((_, i) => i !== index));
+                }}
+              />
+            ))}
+          </Box>
+          
           <Box 
             sx={{ 
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
               display: 'flex', 
               flexDirection: 'column',
-              alignItems: 'center', 
-              justifyContent: 'center',
-              border: '2px dashed #ccc',
+              alignItems: 'center',
+              gap: 2,
+              mt: 2,
+              p: 3,
+              bgcolor: 'background.paper',
               borderRadius: 2,
-              bgcolor: '#f5f5f5',
-              zIndex: 1
+              border: '1px solid',
+              borderColor: 'divider'
             }}
           >
-            <Typography color="textSecondary" sx={{ mb: 2 }}>
-              Camera is currently inactive
+            <Typography variant="subtitle1" align="center" gutterBottom>
+              Ready to discover recipes with your ingredients?
             </Typography>
             <Button
               variant="contained"
-              startIcon={<PhotoCamera />}
-              onClick={setupCamera}
+              color="primary"
+              size="large"
+              onClick={() => setShowSuggestions(true)}
+              disabled={scannedIngredients.length === 0}
+              sx={{
+                minWidth: 250,
+                py: 1.5,
+                px: 4,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '1.1rem',
+                fontWeight: 500,
+                boxShadow: 2,
+                '&:hover': {
+                  boxShadow: 4
+                }
+              }}
             >
-              Start Camera
+              Get Meal Suggestions
             </Button>
           </Box>
-        ) : null}
-        
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-        />
-        <canvas
-          ref={canvasRef}
-          style={{
-            display: 'none',
-          }}
-        />
-      </Box>
 
-      <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {isCameraActive && (
-          <>
-            <Button 
-              variant="contained" 
-              onClick={captureAndAnalyze}
-              disabled={isAnalyzing}
-              sx={{ position: 'relative' }}
-            >
-              {isAnalyzing ? (
-                <>
-                  Analyzing...
-                  <CircularProgress 
-                    size={24} 
-                    sx={{ 
-                      position: 'absolute',
-                      right: 10
-                    }} 
-                  />
-                </>
-              ) : 'Analyze Current Step'}
-            </Button>
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={stopCamera}
-            >
-              Stop Camera
-            </Button>
-          </>
-        )}
-
-        {analysis && (
-          <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Analysis:
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
-              {analysis}
-            </Typography>
-          </Paper>
-        )}
-      </Box>
+          {showSuggestions && (
+            <Box mt={4}>
+              <RecipeSuggestions ingredients={scannedIngredients} />
+            </Box>
+          )}
+        </Box>
+      )}
     </Paper>
   );
 } 

@@ -24,14 +24,15 @@ export const en = {
     recipes: "Recipes",
     favorites: "Favorites",
     settings: "Settings",
-    scan: "Scan",
+    scan: "Scan Ingredients",
     shoppingList: "Shopping List",
     savedRecipes: "Saved Recipes",
     myRecipes: "My Recipes",
     myMeals: "My Meals",
     profile: "Profile",
-    education: "Education",
-    chat: "Chat Assistant"
+    education: "Learn to Cook",
+    chat: "Chat Assistant",
+    basicIngredients: "Basic Ingredients"
   },
   recipe: {
     ingredients: "Ingredients",
