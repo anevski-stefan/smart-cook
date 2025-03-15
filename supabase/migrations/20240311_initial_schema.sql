@@ -51,12 +51,33 @@ create table public.shopping_list (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Create chats table
+create table public.chats (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.users on delete cascade not null,
+  title text not null default 'New Chat',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Create chat_messages table
+create table public.chat_messages (
+  id uuid default uuid_generate_v4() primary key,
+  chat_id uuid references public.chats on delete cascade not null,
+  sender text not null check (sender in ('user', 'assistant')),
+  content text not null,
+  image_url text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- Create RLS policies
 alter table public.users enable row level security;
 alter table public.saved_recipes enable row level security;
 alter table public.user_ingredients enable row level security;
 alter table public.recipe_ratings enable row level security;
 alter table public.shopping_list enable row level security;
+alter table public.chats enable row level security;
+alter table public.chat_messages enable row level security;
 
 -- Users policies
 create policy "Users can view their own data"
@@ -103,6 +124,44 @@ create policy "Users can manage their shopping list"
   on public.shopping_list for all
   using (auth.uid() = user_id);
 
+-- Chats policies
+create policy "Users can view their own chats"
+  on public.chats for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create chats"
+  on public.chats for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own chats"
+  on public.chats for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own chats"
+  on public.chats for delete
+  using (auth.uid() = user_id);
+
+-- Chat messages policies
+create policy "Users can view messages from their chats"
+  on public.chat_messages for select
+  using (
+    exists (
+      select 1 from public.chats
+      where chats.id = chat_messages.chat_id
+      and chats.user_id = auth.uid()
+    )
+  );
+
+create policy "Users can insert messages to their chats"
+  on public.chat_messages for insert
+  with check (
+    exists (
+      select 1 from public.chats
+      where chats.id = chat_messages.chat_id
+      and chats.user_id = auth.uid()
+    )
+  );
+
 -- Create functions
 create or replace function public.get_recipe_average_rating(recipe_id text)
 returns numeric as $$
@@ -139,15 +198,12 @@ create trigger handle_recipe_ratings_updated_at
 create trigger handle_shopping_list_updated_at
   before update on public.shopping_list
   for each row
-  execute function public.handle_updated_at(); 
+  execute function public.handle_updated_at();
 
-  create or replace function public.get_recipe_average_rating(recipe_id text)
-returns numeric as $$
-  select coalesce(avg(rating)::numeric(3,2), 0)
-  from public.recipe_ratings
-  where recipe_ratings.recipe_id = $1;
-$$ language sql security definer;
-
+create trigger handle_chats_updated_at
+  before update on public.chats
+  for each row
+  execute function public.handle_updated_at();
 
 -- Keep only the text version and drop the UUID version
 DROP FUNCTION IF EXISTS public.get_recipe_average_rating(recipe_id uuid);
