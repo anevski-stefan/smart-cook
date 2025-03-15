@@ -1,24 +1,37 @@
 import { useState, useEffect } from 'react';
-import { IconButton, Tooltip } from '@mui/material';
+import { IconButton, Tooltip, Snackbar, Alert } from '@mui/material';
 import { Bookmark, BookmarkBorder } from '@mui/icons-material';
 import { useAuth } from '@/contexts/AuthContext';
-import { saveRecipe, unsaveRecipe, getSavedRecipes } from '@/utils/supabase-client';
+import { saveRecipe, unsaveRecipe, getSavedRecipes } from '@/utils/recipes';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SaveRecipeButtonProps {
   recipeId: string;
 }
 
 export default function SaveRecipeButton({ recipeId }: SaveRecipeButtonProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [isSaved, setIsSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   useEffect(() => {
     const checkIfSaved = async () => {
       if (user) {
         try {
+          console.log('Checking if recipe is saved:', recipeId);
           const savedRecipes = await getSavedRecipes();
           setIsSaved(savedRecipes.includes(recipeId));
+          console.log('Recipe saved status:', savedRecipes.includes(recipeId));
         } catch (error) {
           console.error('Error checking saved status:', error);
         }
@@ -31,21 +44,47 @@ export default function SaveRecipeButton({ recipeId }: SaveRecipeButtonProps) {
 
   const handleToggleSave = async () => {
     if (!user) {
-      // TODO: Show login prompt
+      // Show login notification
+      setNotification({
+        open: true,
+        message: t('auth.signInPrompt') || 'Please sign in to save recipes',
+        severity: 'error',
+      });
       return;
     }
 
     try {
       if (isSaved) {
+        console.log('Unsaving recipe:', recipeId);
         await unsaveRecipe(recipeId);
         setIsSaved(false);
+        setNotification({
+          open: true,
+          message: 'Recipe removed from saved recipes',
+          severity: 'success',
+        });
       } else {
+        console.log('Saving recipe:', recipeId);
         await saveRecipe(recipeId);
         setIsSaved(true);
+        setNotification({
+          open: true,
+          message: 'Recipe saved successfully',
+          severity: 'success',
+        });
       }
     } catch (error) {
       console.error('Error toggling save status:', error);
+      setNotification({
+        open: true,
+        message: 'Error saving recipe',
+        severity: 'error',
+      });
     }
+  };
+
+  const handleCloseNotification = () => {
+    setNotification({ ...notification, open: false });
   };
 
   if (loading) {
@@ -53,10 +92,27 @@ export default function SaveRecipeButton({ recipeId }: SaveRecipeButtonProps) {
   }
 
   return (
-    <Tooltip title={isSaved ? 'Remove from saved recipes' : 'Save recipe'}>
-      <IconButton onClick={handleToggleSave} color={isSaved ? 'primary' : 'default'}>
-        {isSaved ? <Bookmark /> : <BookmarkBorder />}
-      </IconButton>
-    </Tooltip>
+    <>
+      <Tooltip title={isSaved ? 'Remove from saved recipes' : 'Save recipe'}>
+        <IconButton onClick={handleToggleSave} color={isSaved ? 'primary' : 'default'}>
+          {isSaved ? <Bookmark /> : <BookmarkBorder />}
+        </IconButton>
+      </Tooltip>
+      
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={4000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseNotification} 
+          severity={notification.severity}
+          sx={{ width: '100%' }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
+    </>
   );
 } 

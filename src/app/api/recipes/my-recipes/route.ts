@@ -42,7 +42,7 @@ export async function GET() {
 
     // Fetch user's recipes
     const { data: recipes, error: recipesError } = await supabase
-      .from('recipes')
+      .from('meals')
       .select('*, users(email)')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false });

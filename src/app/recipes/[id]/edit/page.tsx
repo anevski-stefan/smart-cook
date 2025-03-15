@@ -19,7 +19,7 @@ export default async function EditRecipePage({
 
   // Fetch recipe
   const { data: recipe, error } = await supabase
-    .from('recipes')
+    .from('meals')
     .select('*')
     .eq('id', params.id)
     .single();

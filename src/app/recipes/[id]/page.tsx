@@ -5,6 +5,7 @@ import type { Recipe, RecipeIngredient, Instruction } from '@/types/recipe';
 import { createClient } from '@/utils/supabase/server';
 import RecipeDetailClient from '@/components/RecipeDetailClient';
 import IngredientsSection from '@/components/IngredientsSection';
+import SaveRecipeButtonWrapper from '@/components/SaveRecipeButtonWrapper';
 
 interface RecipeWithUser extends Recipe {
   user?: {
@@ -160,7 +161,7 @@ export default async function RecipePage({
   // Try to fetch from Supabase first
   const supabase = createClient();
   const { data: supabaseRecipe, error: supabaseError } = await supabase
-    .from('recipes')
+    .from('meals')
     .select('*, user:user_id(email)')
     .eq('id', params.id)
     .single<RecipeWithUser>();
@@ -187,7 +188,8 @@ export default async function RecipePage({
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold">{recipe.title}</h1>
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
+          <SaveRecipeButtonWrapper recipeId={recipe.id} />
           {isOwner && (
             <Link
               href={`/recipes/${recipe.id}/edit`}

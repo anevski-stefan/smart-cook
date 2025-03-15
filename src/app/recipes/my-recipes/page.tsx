@@ -17,7 +17,7 @@ export default async function MyRecipesPage() {
 
   // Fetch user's recipes
   const { data: recipes, error: recipesError } = await supabase
-    .from('recipes')
+    .from('meals')
     .select('*, users(email)')
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false });
@@ -49,7 +49,7 @@ export default async function MyRecipesPage() {
               onDelete={async () => {
                 'use server';
                 const { error } = await supabase
-                  .from('recipes')
+                  .from('meals')
                   .delete()
                   .eq('id', recipe.id)
                   .eq('user_id', session.user.id);

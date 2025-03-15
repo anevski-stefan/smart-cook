@@ -7,7 +7,7 @@ export default async function RecipesPage() {
   const supabase = createClient();
 
   const { data: recipes } = await supabase
-    .from('recipes')
+    .from('meals')
     .select('*')
     .order('created_at', { ascending: false });
 

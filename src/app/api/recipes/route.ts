@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const supabase = createClient();
 
   const { data: recipes, error } = await supabase
-    .from('recipes')
+    .from('meals')
     .select('*')
     .gte('cooking_time', minTime)
     .lte('cooking_time', maxTime)
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const input: CreateRecipeInput = await request.json();
 
   const { data: recipe, error } = await supabase
-    .from('recipes')
+    .from('meals')
     .insert({
       ...input,
       user_id: session.user.id,
@@ -70,7 +70,7 @@ export async function PATCH(request: Request) {
 
   // Check if the user owns this recipe
   const { data: existingRecipe } = await supabase
-    .from('recipes')
+    .from('meals')
     .select('user_id')
     .eq('id', id)
     .single<Recipe>();
@@ -83,7 +83,7 @@ export async function PATCH(request: Request) {
   }
 
   const { data: recipe, error } = await supabase
-    .from('recipes')
+    .from('meals')
     .update(updates)
     .eq('id', id)
     .select()
@@ -119,7 +119,7 @@ export async function DELETE(request: Request) {
 
   // Check if the user owns this recipe
   const { data: existingRecipe } = await supabase
-    .from('recipes')
+    .from('meals')
     .select('user_id')
     .eq('id', id)
     .single<Recipe>();
@@ -132,7 +132,7 @@ export async function DELETE(request: Request) {
   }
 
   const { error } = await supabase
-    .from('recipes')
+    .from('meals')
     .delete()
     .eq('id', id);
 

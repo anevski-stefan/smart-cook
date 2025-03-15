@@ -43,28 +43,31 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: recipe, error } = await supabase
-      .from('recipes')
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const recipeId = params.id;
+    
+    const { data: meal, error } = await supabase
+      .from('meals')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', recipeId)
       .single();
 
     if (error) throw error;
-    if (!recipe) {
+    if (!meal) {
       return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
     }
 
     // Add timer information to instructions if present
-    if (recipe.instructions) {
-      recipe.instructions = recipe.instructions.map((instruction: Instruction) => ({
+    if (meal.instructions) {
+      meal.instructions = meal.instructions.map((instruction: Instruction) => ({
         ...instruction,
         timerRequired: stepRequiresTimer(instruction.text),
         duration: estimateStepDuration(instruction.text)
       }));
     }
 
-    return NextResponse.json(recipe);
+    return NextResponse.json(meal);
   } catch (error) {
     console.error('Error fetching recipe:', error);
     return NextResponse.json({ error: 'Failed to fetch recipe' }, { status: 500 });
@@ -77,8 +80,10 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const updates: UpdateRecipeInput = await request.json();
+    const recipeId = params.id;
 
     // Verify user owns the recipe
     const { data: { user } } = await supabase.auth.getUser();
@@ -86,20 +91,20 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: recipe, error } = await supabase
-      .from('recipes')
+    const { data: meal, error } = await supabase
+      .from('meals')
       .update(updates)
-      .eq('id', params.id)
+      .eq('id', recipeId)
       .eq('user_id', user.id)
       .select()
       .single();
 
     if (error) throw error;
-    if (!recipe) {
+    if (!meal) {
       return NextResponse.json({ error: 'Recipe not found or unauthorized' }, { status: 404 });
     }
 
-    return NextResponse.json(recipe);
+    return NextResponse.json(meal);
   } catch (error) {
     console.error('Error updating recipe:', error);
     return NextResponse.json({ error: 'Failed to update recipe' }, { status: 500 });
@@ -112,7 +117,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const recipeId = params.id;
 
     // Verify user owns the recipe
     const { data: { user } } = await supabase.auth.getUser();
@@ -121,9 +128,9 @@ export async function DELETE(
     }
 
     const { error } = await supabase
-      .from('recipes')
+      .from('meals')
       .delete()
-      .eq('id', params.id)
+      .eq('id', recipeId)
       .eq('user_id', user.id);
 
     if (error) throw error;

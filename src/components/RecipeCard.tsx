@@ -18,27 +18,17 @@ import {
   SignalCellularAlt as SignalCellularAltIcon,
 } from '@mui/icons-material';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Recipe, DifficultyLevel } from '@/types/recipe';
+import { Recipe } from '@/types/recipe';
 
 interface RecipeCardProps {
   recipe: Recipe;
   onClick?: () => void;
   onEdit?: (recipe: Recipe) => void;
   onDelete?: (recipe: Recipe) => void;
+  editButtonLabel?: string;
 }
 
-const getDifficultyTranslationKey = (difficulty: DifficultyLevel): 'search.complexityLevels.easy' | 'search.complexityLevels.medium' | 'search.complexityLevels.hard' => {
-  switch (difficulty.toLowerCase() as DifficultyLevel) {
-    case 'easy':
-      return 'search.complexityLevels.easy';
-    case 'medium':
-      return 'search.complexityLevels.medium';
-    case 'hard':
-      return 'search.complexityLevels.hard';
-  }
-};
-
-export default function RecipeCard({ recipe, onClick, onEdit, onDelete }: RecipeCardProps) {
+export default function RecipeCard({ recipe, onClick, onEdit, onDelete, editButtonLabel }: RecipeCardProps) {
   const { t } = useTranslation();
 
   const cardContent = (
@@ -105,7 +95,8 @@ export default function RecipeCard({ recipe, onClick, onEdit, onDelete }: Recipe
                 e.stopPropagation();
                 onEdit(recipe);
               }}
-              aria-label={t('common.edit')}
+              aria-label={editButtonLabel || t('common.edit')}
+              title={editButtonLabel || t('common.edit')}
             >
               <EditIcon fontSize="small" />
             </IconButton>
