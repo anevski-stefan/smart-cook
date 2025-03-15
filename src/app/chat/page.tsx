@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Box,
-  Container,
   Paper,
   TextField,
   Button,
@@ -1408,86 +1407,52 @@ export default function ChatPage() {
             zIndex: 1200,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-            <Paper
+          <Tooltip title="Show all chats" placement="left">
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => {
+                setShowSidebar(true);
+                loadChats();
+              }}
               sx={{
-                py: 0.5,
-                px: 1.5,
-                mr: 1,
-                borderRadius: 2,
-                boxShadow: theme.shadows[2],
-                bgcolor: alpha(theme.palette.secondary.main, 0.1),
-                color: theme.palette.secondary.main,
-                typography: 'caption',
-                fontWeight: 500,
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                boxShadow: theme.shadows[3],
+                minWidth: 'unset',
+                p: 0,
+                '&:hover': {
+                  boxShadow: theme.shadows[5],
+                },
+                bgcolor: alpha(theme.palette.secondary.main, 0.9),
               }}
             >
-              All Chats
-            </Paper>
-            <Tooltip title="Show all chats" placement="left">
-              <Button
-                variant="contained"
-                color="secondary"
-                onClick={() => {
-                  setShowSidebar(true);
-                  loadChats();
-                }}
-                sx={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: '50%',
-                  boxShadow: theme.shadows[3],
-                  minWidth: 'unset',
-                  p: 0,
-                  '&:hover': {
-                    boxShadow: theme.shadows[5],
-                  },
-                  bgcolor: alpha(theme.palette.secondary.main, 0.9),
-                }}
-              >
-                <ListIcon fontSize="small" />
-              </Button>
-            </Tooltip>
-          </Box>
+              <ListIcon fontSize="small" />
+            </Button>
+          </Tooltip>
           
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-            <Paper
+          <Tooltip title="New chat" placement="left">
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={createNewChat}
               sx={{
-                py: 0.5,
-                px: 1.5,
-                mr: 1,
-                borderRadius: 2,
-                boxShadow: theme.shadows[2],
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                color: theme.palette.primary.main,
-                typography: 'caption',
-                fontWeight: 500,
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                boxShadow: theme.shadows[4],
+                minWidth: 'unset',
+                p: 0,
+                '&:hover': {
+                  boxShadow: theme.shadows[6],
+                },
+                bgcolor: alpha(theme.palette.primary.main, 0.9),
               }}
             >
-              New Chat
-            </Paper>
-            <Tooltip title={t(TRANSLATION_KEYS.newChat)} placement="left">
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={createNewChat}
-                sx={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: '50%',
-                  boxShadow: theme.shadows[4],
-                  minWidth: 'unset',
-                  p: 0,
-                  '&:hover': {
-                    boxShadow: theme.shadows[6],
-                  },
-                  bgcolor: alpha(theme.palette.primary.main, 0.9),
-                }}
-              >
-                <AddIcon fontSize="small" />
-              </Button>
-            </Tooltip>
-          </Box>
+              <AddIcon fontSize="small" />
+            </Button>
+          </Tooltip>
         </Box>
       )}
 
