@@ -141,7 +141,7 @@ export default function ProfilePage() {
   const handleSaveToGoogleCalendar = () => {
     gapi.load('client:auth2', () => {
       gapi.client.init({
-        apiKey: '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',
+        apiKey: 'AIzaSyDJU6uRs_u2iUSpnfGFkbHvommu3RjRf-c',
         clientId: 'client id 494079691849-1njeki9km8niqsfjrit55valechdlhga.apps.googleusercontent.com',
         discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
         scope: 'https://www.googleapis.com/auth/calendar.events',
