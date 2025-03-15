@@ -22,6 +22,12 @@ export default function RecipeDetailClient({ recipe }: RecipeDetailClientProps) 
     id: instruction.id || `step-${index}`,
   }));
 
+  // Ensure each ingredient has a valid ID
+  const ingredients = recipe.ingredients.map((ingredient, index) => ({
+    ...ingredient,
+    id: ingredient.id || `ingredient-${index}`,
+  }));
+
   // Calculate percentages for nutritional values (based on daily recommended values)
   const getPercentage = (value: number, type: 'calories' | 'protein' | 'carbs' | 'fat') => {
     const dailyValues = {
@@ -168,10 +174,7 @@ export default function RecipeDetailClient({ recipe }: RecipeDetailClientProps) 
       <div className="mb-8">
         <CookingAssistant
           instructions={instructions}
-          ingredients={recipe.ingredients.map(ingredient => ({
-            ...ingredient,
-            id: ingredient.id || `generated-${Math.random()}`,
-          }))}
+          ingredients={ingredients}
           totalRecipeTime={recipe.cookingTime}
           onStepChange={handleStepChange}
         />

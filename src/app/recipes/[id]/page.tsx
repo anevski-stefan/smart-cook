@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { Recipe, RecipeIngredient, Instruction } from '@/types/recipe';
 import { createClient } from '@/utils/supabase/server';
 import RecipeDetailClient from '@/components/RecipeDetailClient';
+import IngredientsSection from '@/components/IngredientsSection';
 
 interface RecipeWithUser extends Recipe {
   user?: {
@@ -245,17 +246,7 @@ export default async function RecipePage({
             </div>
           </div>
 
-          <div className="mb-6">
-            <h2 className="mb-4 text-xl font-semibold">Ingredients</h2>
-            <ul className="space-y-2">
-              {recipe.ingredients.map((ingredient: RecipeIngredient, index: number) => (
-                <li key={ingredient.id || index} className="flex items-center gap-2">
-                  <span className="font-medium">{ingredient.amount} {ingredient.unit}</span>
-                  <span>{ingredient.name}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <IngredientsSection ingredients={recipe.ingredients} />
 
           {recipe.dietary_restrictions && recipe.dietary_restrictions.length > 0 && (
             <div className="mb-6">
