@@ -4,6 +4,29 @@ DROP FUNCTION IF EXISTS public.handle_updated_at() CASCADE;
 DROP FUNCTION IF EXISTS public.update_meals_updated_at() CASCADE;
 DROP FUNCTION IF EXISTS public.create_user_record(uuid, text) CASCADE;
 
+-- Drop existing policies
+DROP POLICY IF EXISTS "Allow all users to read basic ingredients" ON public.basic_ingredients;
+DROP POLICY IF EXISTS "Allow authenticated users to delete basic ingredients" ON public.basic_ingredients;
+DROP POLICY IF EXISTS "Allow authenticated users to insert basic ingredients" ON public.basic_ingredients;
+DROP POLICY IF EXISTS "Allow authenticated users to update basic ingredients" ON public.basic_ingredients;
+DROP POLICY IF EXISTS "Users can view messages from their chats" ON public.chat_messages;
+DROP POLICY IF EXISTS "Users can insert messages to their chats" ON public.chat_messages;
+DROP POLICY IF EXISTS "Users can view their own chats" ON public.chats;
+DROP POLICY IF EXISTS "Users can create chats" ON public.chats;
+DROP POLICY IF EXISTS "Users can update their own chats" ON public.chats;
+DROP POLICY IF EXISTS "Users can delete their own chats" ON public.chats;
+DROP POLICY IF EXISTS "Users can view their own meals" ON public.meals;
+DROP POLICY IF EXISTS "Users can insert their own meals" ON public.meals;
+DROP POLICY IF EXISTS "Users can update their own meals" ON public.meals;
+DROP POLICY IF EXISTS "Users can delete their own meals" ON public.meals;
+DROP POLICY IF EXISTS "Users can manage their shopping list" ON public.shopping_list;
+DROP POLICY IF EXISTS "Users can view their own shopping list" ON public.shopping_list;
+DROP POLICY IF EXISTS "Users can manage their ingredients" ON public.user_ingredients;
+DROP POLICY IF EXISTS "Users can view their own ingredients" ON public.user_ingredients;
+DROP POLICY IF EXISTS "Users can view their own data" ON public.users;
+DROP POLICY IF EXISTS "Service role can manage all records" ON public.users;
+DROP POLICY IF EXISTS "Users can manage their own records" ON public.users;
+
 -- Create tables if they don't exist
 CREATE TABLE IF NOT EXISTS public.users (
   id uuid references auth.users on delete cascade not null primary key,
@@ -57,6 +80,39 @@ CREATE TABLE IF NOT EXISTS public.meals (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Enable RLS on all tables
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_ingredients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shopping_list ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.meals ENABLE ROW LEVEL SECURITY;
+
+-- Create essential RLS policies
+-- Users table policies
+CREATE POLICY "Users can view and manage their own data"
+ON public.users FOR ALL
+USING (auth.uid() = id);
+
+-- User ingredients policies
+CREATE POLICY "Users can manage their own ingredients"
+ON public.user_ingredients FOR ALL
+USING (auth.uid() = user_id);
+
+-- Shopping list policies
+CREATE POLICY "Users can manage their shopping list"
+ON public.shopping_list FOR ALL
+USING (auth.uid() = user_id);
+
+-- Chats policies
+CREATE POLICY "Users can manage their own chats"
+ON public.chats FOR ALL
+USING (auth.uid() = user_id);
+
+-- Meals policies
+CREATE POLICY "Users can manage their own meals"
+ON public.meals FOR ALL
+USING (auth.uid() = user_id);
 
 -- Create functions
 -- 1. Handle new user function
