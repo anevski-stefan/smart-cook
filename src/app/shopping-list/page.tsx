@@ -28,7 +28,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { supabase } from '@/utils/supabase-client';
+import { createClient } from '@/utils/supabase/client';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface ShoppingListItem {
@@ -55,18 +55,47 @@ export default function ShoppingListPage() {
     unit: '',
   });
 
+  // Create authenticated Supabase client
+  const supabase = createClient();
+
   const fetchShoppingList = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('No user ID available, skipping fetch');
+      return;
+    }
     
     setLoading(true);
     try {
+      console.log('Fetching shopping list for user:', user.id);
+      
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log('No active session found');
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        setLoading(false);
+        return;
+      }
+
+      const userId = session.user.id;
+      console.log('Session user ID:', userId);
+      
       const { data, error } = await supabase
         .from('shopping_list')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
 
+      console.log(`Fetched ${data?.length || 0} shopping list items:`, data);
       setItems(data || []);
     } catch (error) {
       console.error('Error fetching shopping list:', error);
@@ -74,7 +103,7 @@ export default function ShoppingListPage() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]); // Remove t from dependencies since we're not using it in fetchShoppingList anymore
+  }, [user?.id, supabase]);
 
   useEffect(() => {
     fetchShoppingList();
@@ -85,6 +114,15 @@ export default function ShoppingListPage() {
     if (!targetItem) return;
 
     try {
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        return;
+      }
+
+      const userId = session.user.id;
+
       // Update shopping list item checked status
       const updatedItems = items.map((item) =>
         item.id === itemId ? { ...item, checked: !item.checked } : item
@@ -103,7 +141,7 @@ export default function ShoppingListPage() {
         const { error: ingredientError } = await supabase
           .from('user_ingredients')
           .insert({
-            user_id: user?.id,
+            user_id: userId,
             name: targetItem.name,
             quantity: targetItem.amount,
             unit: targetItem.unit,
@@ -116,7 +154,7 @@ export default function ShoppingListPage() {
         const { error: deleteError } = await supabase
           .from('user_ingredients')
           .delete()
-          .eq('user_id', user?.id)
+          .eq('user_id', userId)
           .eq('name', targetItem.name)
           .eq('quantity', targetItem.amount)
           .eq('unit', targetItem.unit);
@@ -132,6 +170,13 @@ export default function ShoppingListPage() {
 
   const handleDeleteItem = async (itemId: string) => {
     try {
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        return;
+      }
+
       const { error } = await supabase
         .from('shopping_list')
         .delete()
@@ -150,29 +195,57 @@ export default function ShoppingListPage() {
   const handleAddItem = async () => {
     try {
       if (!newItem.name || !newItem.amount || !newItem.unit) {
+        console.log('Missing required fields for new item');
         return;
       }
 
+      console.log('Adding new item to shopping list:', newItem);
+
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log('No active session found');
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        return;
+      }
+
+      const userId = session.user.id;
+      console.log('Session user ID:', userId);
+
+      const newShoppingItem = {
+        user_id: userId,
+        name: newItem.name,
+        amount: parseFloat(newItem.amount),
+        unit: newItem.unit,
+        checked: false,
+      };
+      
+      console.log('Inserting shopping list item:', newShoppingItem);
+
       const { data, error } = await supabase
         .from('shopping_list')
-        .insert([
-          {
-            user_id: user?.id || '',
-            name: newItem.name,
-            amount: parseFloat(newItem.amount),
-            unit: newItem.unit,
-            checked: false,
-          },
-        ])
+        .insert([newShoppingItem])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
 
+      console.log('Successfully added item:', data);
       setItems([...items, data as ShoppingListItem]);
       setOpenDialog(false);
       setNewItem({ name: '', amount: '', unit: '' });
       setMessage({ type: 'success', text: t('shoppingList.addSuccess') });
+      
+      // Refresh the shopping list to ensure we have the latest data
+      fetchShoppingList();
     } catch (error) {
       console.error('Error adding item:', error);
       setMessage({ type: 'error', text: t('shoppingList.addError') });
@@ -181,6 +254,13 @@ export default function ShoppingListPage() {
 
   const handleClearChecked = async () => {
     try {
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setMessage({ type: 'error', text: 'Your session has expired. Please log in again.' });
+        return;
+      }
+
       const checkedIds = items.filter((item) => item.checked).map((item) => item.id);
 
       const { error } = await supabase
