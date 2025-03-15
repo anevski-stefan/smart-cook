@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSelector } from './LanguageSelector';
+import ThemeToggle from './ThemeToggle';
 
 type NavigationPage = 'search' | 'scan' | 'education' | 'chat';
 type SettingsKey = 'profile' | 'saved-recipes' | 'shopping-list' | 'ingredients' | 'basic-ingredients' | 'my-meals' | 'sign-out';
@@ -135,7 +136,7 @@ export default function Navbar() {
               aria-controls="menu-appbar"
               aria-haspopup="true"
               onClick={handleOpenNavMenu}
-              sx={{ color: 'white', p: 1 }}
+              sx={{ p: 1, color: 'white' }}
             >
               <MenuIcon />
             </IconButton>
@@ -222,6 +223,7 @@ export default function Navbar() {
             ml: { xs: 1, sm: 2 }
           }}>
             <LanguageSelector />
+            <ThemeToggle />
             
             {user ? (
               <>

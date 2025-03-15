@@ -87,6 +87,18 @@ export default function Home() {
         p: { xs: 2, md: 4 },
         color: 'white',
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        position: 'relative',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          borderRadius: 2,
+          zIndex: 0,
+        },
       }}
     >
       <Box
@@ -96,6 +108,8 @@ export default function Home() {
           alignItems: 'center',
           textAlign: 'center',
           gap: { xs: 3, md: 4 },
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <Box sx={{ 
@@ -116,7 +130,7 @@ export default function Home() {
               component="h1" 
               sx={{ 
                 fontWeight: 700,
-                color: 'white',
+                color: theme => theme.palette.mode === 'dark' ? 'white' : 'primary.dark',
                 letterSpacing: '-0.5px',
                 textShadow: '1px 1px 2px rgba(0,0,0,0.1)'
               }}
@@ -159,7 +173,10 @@ export default function Home() {
                     boxShadow: 4,
                   },
                   borderRadius: 2,
-                  backgroundColor: 'rgba(255, 255, 255, 0.8)'
+                  backgroundColor: theme => theme.palette.mode === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.05)' 
+                    : 'rgba(255, 255, 255, 0.8)',
+                  color: theme => theme.palette.mode === 'dark' ? 'white' : 'inherit',
                 }}
               >
                 <Box sx={{ mb: 2 }}>
@@ -169,10 +186,10 @@ export default function Home() {
                   {feature.title}
                 </Typography>
                 <Typography 
-                  color="text.secondary" 
                   sx={{ 
                     mb: 3,
-                    flexGrow: 1
+                    flexGrow: 1,
+                    color: theme => theme.palette.mode === 'dark' ? 'text.primary' : 'text.secondary'
                   }}
                 >
                   {feature.description}
