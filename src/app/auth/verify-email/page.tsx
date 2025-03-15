@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Container, Typography, Paper, Box, CircularProgress, Button } from '@mui/material';
 import { supabase } from '@/utils/supabase-client';
 import { useTranslation } from '@/hooks/useTranslation';
-import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export default function VerifyEmail() {
@@ -97,7 +96,6 @@ export default function VerifyEmail() {
       flexDirection: 'column',
       minHeight: '100vh'
     }}>
-      <Navbar />
       <Container maxWidth="sm" sx={{ flex: 1 }}>
         <Box sx={{ mt: 8, mb: 8 }}>
           <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>

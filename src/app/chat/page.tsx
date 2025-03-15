@@ -9,30 +9,26 @@ import {
   Typography,
   CircularProgress,
   IconButton,
-  Divider,
   Avatar,
   useTheme,
   Tooltip,
   useMediaQuery,
   Menu,
   MenuItem,
-  Badge,
   InputAdornment,
+  Snackbar,
+  Alert as MuiAlert,
 } from '@mui/material';
 import {
   Send as SendIcon,
-  Save as SaveIcon,
   PhotoCamera,
   SmartToy as BotIcon,
   Person as PersonIcon,
   ArrowBack as ArrowBackIcon,
-  Menu as MenuIcon,
   Search as SearchIcon,
   Add as AddIcon,
   MoreVert as MoreVertIcon,
   Delete as DeleteIcon,
-  Refresh as RefreshIcon,
-  Chat as ChatIcon,
   List as ListIcon,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
@@ -41,6 +37,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useTranslation } from '@/hooks/useTranslation';
 import ReactMarkdown from 'react-markdown';
 import { alpha } from '@mui/material/styles';
+import Image from 'next/image';
 
 interface Message {
   id: string;
@@ -80,11 +77,66 @@ export default function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
-  const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   // Add auto-resize functionality for the input
   const textFieldRef = useRef<HTMLTextAreaElement>(null);
+
+  const loadMessages = useCallback(async (chatId: string) => {
+    try {
+      console.log('Loading messages for chat ID:', chatId);
+      const { data: messagesData, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      console.log('Loaded messages:', messagesData.length);
+      setMessages(messagesData.map(msg => ({
+        id: msg.id,
+        text: msg.content,
+        sender: msg.sender as 'user' | 'assistant',
+        timestamp: new Date(msg.created_at),
+        image: msg.image_url
+      })));
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  }, [supabase]);
+
+  // Memoize loadChats function
+  const loadChats = useCallback(async () => {
+    try {
+      console.log('Loading chats...');
+      const { data: chatsData, error } = await supabase
+        .from('chats')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      console.log(`Loaded ${chatsData.length} chats`);
+      setChats(chatsData);
+      setFilteredChats(chatsData);
+      
+      // If there's no current chat but we have chats, select the first one
+      if (chatsData.length > 0 && !currentChat) {
+        console.log('No current chat selected, selecting first chat:', chatsData[0].id);
+        setCurrentChat(chatsData[0]);
+      } else if (currentChat) {
+        // If we have a current chat, make sure it still exists in the loaded chats
+        const chatStillExists = chatsData.some(chat => chat.id === currentChat.id);
+        if (!chatStillExists && chatsData.length > 0) {
+          console.log('Current chat no longer exists, selecting first chat:', chatsData[0].id);
+          setCurrentChat(chatsData[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading chats:', error);
+    }
+  }, [supabase, currentChat]);
 
   const autoResizeTextField = useCallback(() => {
     const textarea = textFieldRef.current;
@@ -142,7 +194,7 @@ export default function ChatPage() {
       console.log('No current chat, clearing messages');
       setMessages([]);
     }
-  }, [currentChat]);
+  }, [currentChat, loadMessages]);
 
   // Make sure sidebar is visible on desktop
   useEffect(() => {
@@ -157,7 +209,7 @@ export default function ChatPage() {
       console.log('User authenticated, loading chats');
       loadChats();
     }
-  }, [user]);
+  }, [user, loadChats]);
 
   // Reload chats when sidebar is shown on mobile
   useEffect(() => {
@@ -165,7 +217,7 @@ export default function ChatPage() {
       console.log('Sidebar shown on mobile, refreshing chat list');
       loadChats();
     }
-  }, [showSidebar, isMobile]);
+  }, [showSidebar, isMobile, loadChats]);
 
   // Filter chats when search query changes
   useEffect(() => {
@@ -181,62 +233,16 @@ export default function ChatPage() {
     }
   }, [searchQuery, chats]);
 
-  const loadChats = async () => {
-    try {
-      console.log('Loading chats...');
-      const { data: chatsData, error } = await supabase
-        .from('chats')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-
-      console.log(`Loaded ${chatsData.length} chats`);
-      setChats(chatsData);
-      setFilteredChats(chatsData);
-      
-      // If there's no current chat but we have chats, select the first one
-      if (chatsData.length > 0 && !currentChat) {
-        console.log('No current chat selected, selecting first chat:', chatsData[0].id);
-        setCurrentChat(chatsData[0]);
-      } else if (currentChat) {
-        // If we have a current chat, make sure it still exists in the loaded chats
-        const chatStillExists = chatsData.some(chat => chat.id === currentChat.id);
-        if (!chatStillExists && chatsData.length > 0) {
-          console.log('Current chat no longer exists, selecting first chat:', chatsData[0].id);
-          setCurrentChat(chatsData[0]);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading chats:', error);
-    }
-  };
-
-  const loadMessages = async (chatId: string) => {
-    try {
-      console.log('Loading messages for chat ID:', chatId);
-      const { data: messagesData, error } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      console.log('Loaded messages:', messagesData.length);
-      setMessages(messagesData.map(msg => ({
-        id: msg.id,
-        text: msg.content,
-        sender: msg.sender as 'user' | 'assistant',
-        timestamp: new Date(msg.created_at),
-        image: msg.image_url
-      })));
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    }
-  };
-
   const createNewChat = async () => {
+    // Check if user is logged in first
+    if (!user) {
+      setNotification({ type: 'error', message: t('auth.signInPrompt') });
+      setTimeout(() => {
+        router.push('/auth/login');
+      }, 2000);
+      return;
+    }
+
     // If we already have a current chat with no messages, don't create a new one
     if (currentChat && messages.length === 0) {
       return;
@@ -380,7 +386,7 @@ export default function ChatPage() {
     if (imageFile) {
       try {
         console.log('Uploading image...');
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('images')
           .upload(`chat/${user!.id}/${messageId}`, imageFile, {
             cacheControl: '3600',
@@ -396,11 +402,11 @@ export default function ChatPage() {
 
         imageUrl = publicUrl;
         console.log('Image uploaded:', publicUrl);
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error uploading image:', error);
         setMessages(prev => [...prev, {
           id: Date.now().toString(),
-          text: `Error uploading image: ${error.message || 'Something went wrong'}. Please try again.`,
+          text: `Error uploading image: ${error instanceof Error ? error.message : 'Something went wrong'}. Please try again.`,
           sender: 'assistant',
           timestamp: new Date()
         }]);
@@ -487,16 +493,15 @@ export default function ChatPage() {
         ));
       }
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: `Error: ${error.message || 'Something went wrong. Please try again.'}`,
+        text: `Error: ${error instanceof Error ? error.message : 'Something went wrong. Please try again.'}`,
         sender: 'assistant',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
-      // Save error message to the same chat
       await saveMessage(errorMessage, chatId);
     } finally {
       setIsLoading(false);
@@ -505,61 +510,6 @@ export default function ChatPage() {
         fileInputRef.current.value = '';
       }
     }
-  };
-
-  // Add image compression utility
-  const compressImage = async (file: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            reject(new Error('Failed to get canvas context'));
-            return;
-          }
-
-          // Calculate new dimensions while maintaining aspect ratio
-          let width = img.width;
-          let height = img.height;
-          const maxDimension = 1200;
-
-          if (width > height && width > maxDimension) {
-            height = (height * maxDimension) / width;
-            width = maxDimension;
-          } else if (height > maxDimension) {
-            width = (width * maxDimension) / height;
-            height = maxDimension;
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          // Draw and compress image
-          ctx.drawImage(img, 0, 0, width, height);
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) {
-                reject(new Error('Failed to compress image'));
-                return;
-              }
-              resolve(new File([blob], file.name, {
-                type: 'image/jpeg',
-                lastModified: Date.now(),
-              }));
-            },
-            'image/jpeg',
-            0.8 // compression quality
-          );
-        };
-        img.onerror = () => reject(new Error('Failed to load image'));
-      };
-      reader.onerror = () => reject(new Error('Failed to read file'));
-    });
   };
 
   // Add a function to handle message time display
@@ -621,18 +571,13 @@ export default function ChatPage() {
     }
   };
 
-  const handleChatMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setChatMenuAnchorEl(event.currentTarget);
-  };
-
   const handleChatMenuClose = () => {
     setChatMenuAnchorEl(null);
   };
 
-  const handleChatOptionsOpen = (event: React.MouseEvent<HTMLElement>, chatId: string) => {
-    event.stopPropagation();
-    setSelectedChatForOptions(chatId);
+  const handleChatOptionsOpen = (event: React.MouseEvent<HTMLButtonElement>, chatId: string) => {
     setChatOptionsAnchorEl(event.currentTarget);
+    setSelectedChatForOptions(chatId);
   };
 
   const handleChatOptionsClose = () => {
@@ -650,26 +595,14 @@ export default function ChatPage() {
     }
   };
 
-  const debugChatState = () => {
-    console.log('Current chat state:');
-    console.log('Current chat:', currentChat);
-    console.log('All chats:', chats);
-    console.log('Filtered chats:', filteredChats);
-    console.log('Sidebar visible:', showSidebar);
-    console.log('Is mobile:', isMobile);
-    
-    // Force refresh the chat list
-    loadChats();
-  };
-
-  const saveMeal = async (message: Message) => {
-    setLoading(true);
+  const handleSaveRecipe = async (message: Message) => {
+    setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      await supabase
         .from('meals')
         .insert([
           {
-            title: message.text.split('\n')[0], // First line as title
+            title: message.text.split('\n')[0],
             description: message.text,
             type: 'AI_GENERATED',
             user_id: user?.id,
@@ -682,18 +615,14 @@ export default function ChatPage() {
             ingredients: [],
             instructions: []
           }
-        ])
-        .select()
-        .single();
-
-      if (error) throw error;
+        ]);
 
       setNotification({ type: 'success', message: t('notifications.mealSaved') });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving meal:', error);
       setNotification({ type: 'error', message: t('notifications.errorSavingMeal') });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -710,6 +639,25 @@ export default function ChatPage() {
         bgcolor: theme.palette.mode === 'light' ? '#F8FAFC' : '#0A1929',
       }}
     >
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={!!notification}
+        autoHideDuration={6000}
+        onClose={() => setNotification(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ bottom: { xs: 90, sm: 24 } }}
+      >
+        <MuiAlert
+          elevation={6}
+          variant="filled"
+          severity={notification?.type || 'info'}
+          onClose={() => setNotification(null)}
+          sx={{ display: notification ? 'flex' : 'none' }}
+        >
+          {notification?.message}
+        </MuiAlert>
+      </Snackbar>
+
       {/* Chat List Sidebar */}
       {(showSidebar || !isMobile) && (
         <Box
@@ -1249,21 +1197,19 @@ export default function ChatPage() {
                       sx={{
                         position: 'relative',
                         width: '100%',
-                        '&:hover': {
-                          '& > .image-overlay': {
-                            opacity: 1,
-                          },
-                        },
+                        aspectRatio: '16/9',
+                        maxHeight: '300px',
                       }}
                     >
-                      <img 
+                      <Image 
                         src={message.image} 
                         alt="Uploaded content"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         style={{
-                          width: '100%',
-                          maxHeight: '300px',
                           objectFit: 'contain',
                         }}
+                        unoptimized={message.image.startsWith('blob:')} // Don't optimize blob URLs
                       />
                     </Box>
                   )}
@@ -1399,44 +1345,10 @@ export default function ChatPage() {
                                 instructions: formattedInstructions
                               });
 
-                              const { data, error } = await supabase
-                                .from('meals')
-                                .insert([{
-                                  user_id: user?.id,
-                                  title: mealInfo.title,
-                                  description: message.text,
-                                  type: 'dinner',
-                                  nutritional_info: mealInfo.nutritional_info,
-                                  ingredients: formattedIngredients,
-                                  instructions: formattedInstructions,
-                                  created_at: mealInfo.created_at,
-                                  updated_at: mealInfo.updated_at,
-                                  cooking_time: mealInfo.cooking_time,
-                                  servings: mealInfo.servings
-                                }])
-                                .select()
-                                .single();
-
-                              if (error) {
-                                console.error('Supabase error:', error);
-                                throw error;
-                              }
-                              
-                              setMessages(prev => [...prev, {
-                                id: Date.now().toString(),
-                                text: t('notifications.mealSaved'),
-                                sender: 'assistant',
-                                timestamp: new Date()
-                              }]);
-                            } catch (error: any) {
+                              await handleSaveRecipe(message);
+                            } catch (error: unknown) {
                               console.error('Error saving meal:', error);
-                              console.error('Error details:', error.message, error.details);
-                              setMessages(prev => [...prev, {
-                                id: Date.now().toString(),
-                                text: `Failed to save meal: ${error.message || 'Unknown error'}`,
-                                sender: 'assistant',
-                                timestamp: new Date()
-                              }]);
+                              setNotification({ type: 'error', message: t('notifications.errorSavingMeal') });
                             }
                           }}
                           sx={{

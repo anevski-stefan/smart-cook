@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Container,
   Typography,
@@ -29,8 +29,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { DatePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-// Import the shared Supabase client
-import { supabase } from '@/utils/supabase-client';
+// Import createClient instead of the shared client
+import { createClient } from '@/utils/supabase/client';
 
 const categories = [
   'Weekly Calories',
@@ -78,6 +78,9 @@ export default function ProfilePage() {
     category: string;
     description: string;
   }>({ category: '', description: '' });
+
+  // Create Supabase client with useMemo
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     // Load goals from Supabase or fallback to localStorage if table doesn't exist
@@ -174,7 +177,7 @@ export default function ProfilePage() {
     };
     
     fetchGoals();
-  }, [user]);
+  }, [user, supabase]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -206,7 +209,7 @@ export default function ProfilePage() {
       console.error('Error updating profile:', error);
       setMessage({
         type: 'error',
-        text: t('profile.updateError'),
+        text: error instanceof Error ? error.message : t('profile.updateError'),
       });
     } finally {
       setLoading(false);

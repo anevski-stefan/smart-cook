@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { Container, Paper, Typography, TextField, Button, Box, Alert } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
-import Navbar from '@/components/Navbar';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -58,72 +57,69 @@ export default function RegisterPage() {
   };
 
   return (
-    <>
-      <Navbar />
-      <Container maxWidth="sm" sx={{ mt: 4 }}>
-        <Paper sx={{ p: 4 }} elevation={3}>
-          <Typography variant="h4" component="h1" gutterBottom align="center">
-            {t('auth.register.title')}
+    <Container maxWidth="sm" sx={{ mt: 4 }}>
+      <Paper sx={{ p: 4 }} elevation={3}>
+        <Typography variant="h4" component="h1" gutterBottom align="center">
+          {t('auth.register.title')}
+        </Typography>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <TextField
+            label={t('common.email')}
+            type="email"
+            fullWidth
+            margin="normal"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <TextField
+            label={t('common.password')}
+            type="password"
+            fullWidth
+            margin="normal"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            helperText={t('auth.register.passwordHelperText')}
+          />
+          <TextField
+            label={t('common.password')}
+            type="password"
+            fullWidth
+            margin="normal"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            fullWidth
+            size="large"
+            sx={{ mt: 3 }}
+            disabled={loading}
+          >
+            {loading ? t('auth.register.creatingAccount') : t('auth.register.createButton')}
+          </Button>
+        </form>
+
+        <Box sx={{ mt: 3, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            {t('auth.register.alreadyHaveAccount')}{' '}
+            <Link href={t('auth.routes.login')} style={{ color: 'inherit', textDecoration: 'underline' }}>
+              {t('auth.signInButton')}
+            </Link>
           </Typography>
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <TextField
-              label={t('common.email')}
-              type="email"
-              fullWidth
-              margin="normal"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <TextField
-              label={t('common.password')}
-              type="password"
-              fullWidth
-              margin="normal"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              helperText={t('auth.register.passwordHelperText')}
-            />
-            <TextField
-              label={t('common.password')}
-              type="password"
-              fullWidth
-              margin="normal"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              fullWidth
-              size="large"
-              sx={{ mt: 3 }}
-              disabled={loading}
-            >
-              {loading ? t('auth.register.creatingAccount') : t('auth.register.createButton')}
-            </Button>
-          </form>
-
-          <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              {t('auth.register.alreadyHaveAccount')}{' '}
-              <Link href={t('auth.routes.login')} style={{ color: 'inherit', textDecoration: 'underline' }}>
-                {t('auth.signInButton')}
-              </Link>
-            </Typography>
-          </Box>
-        </Paper>
-      </Container>
-    </>
+        </Box>
+      </Paper>
+    </Container>
   );
 } 
