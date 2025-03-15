@@ -16,12 +16,14 @@ import {
   List,
   ListItem,
   ListItemText,
+  IconButton,
 } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/utils/supabase-client';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const categories = [
   'Weekly Calories',
@@ -43,7 +45,7 @@ export default function ProfilePage() {
   });
   const [goal, setGoal] = useState('');
   const [description, setDescription] = useState('');
-  const [goals, setGoals] = useState<{ category: string; description: string; date: string }[]>([]);
+  const [goals, setGoals] = useState<{ category: string; description: string }[]>([]);
 
   useEffect(() => {
     // Load goals from local storage on component mount
@@ -102,7 +104,7 @@ export default function ProfilePage() {
       });
       return;
     }
-    const newGoals = [...goals, { category: goal, description, date: new Date().toLocaleDateString() }];
+    const newGoals = [...goals, { category: goal, description }];
     setGoals(newGoals);
     localStorage.setItem('weeklyGoals', JSON.stringify(newGoals));
     setGoal('');
@@ -131,24 +133,8 @@ export default function ProfilePage() {
               </Grid>
 
               <Grid item xs={12}>
-                <Typography
-                  variant="h4"
-                  component="h1"
-                  gutterBottom
-                  align="center"
-                  sx={{
-                    background: 'linear-gradient(90deg, green, orange)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
-                >
-                  Hello, {formData.fullName}
-                </Typography>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="h5" component="h2" gutterBottom align="center" color="text.secondary">
-                  Profile Settings
+                <Typography variant="h4" component="h1" gutterBottom align="center">
+                  {t('profile.settings')}
                 </Typography>
               </Grid>
 
@@ -221,7 +207,6 @@ export default function ProfilePage() {
                   variant="contained"
                   fullWidth
                   onClick={handleAddGoal}
-                  sx={{ backgroundColor: 'green', '&:hover': { backgroundColor: 'darkgreen' } }}
                 >
                   Add Goal
                 </Button>
@@ -233,7 +218,6 @@ export default function ProfilePage() {
                   variant="contained"
                   fullWidth
                   disabled={loading}
-                  sx={{ backgroundColor: 'green', '&:hover': { backgroundColor: 'darkgreen' } }}
                 >
                   {loading ? t('profile.updating') : t('profile.updateProfile')}
                 </Button>
@@ -242,25 +226,30 @@ export default function ProfilePage() {
           </Box>
         </Paper>
 
-        <Paper elevation={3} sx={{ p: 2, mt: 4, borderRadius: 2, boxShadow: 4 }}>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'orange' }}>
+        <Paper elevation={3} sx={{ p: 2, mt: 4 }}>
+          <Typography variant="h6" gutterBottom>
             Your Goals
           </Typography>
-          <List sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <List>
             {goals.map((goal, index) => (
-              <ListItem key={index} sx={{ border: '1px solid #ddd', borderRadius: 2, p: 2, boxShadow: 2 }}>
+              <ListItem key={index} sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <ListItemText
-                  primary={<Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>{`${goal.category} - ${goal.date}`}</Typography>}
-                  secondary={<Typography variant="body2" color="text.secondary">{goal.description}</Typography>}
+                  primary={goal.category}
+                  secondary={goal.description}
                 />
-                <Button
-                  variant="outlined"
-                  color="secondary"
+                <IconButton
+                  edge="end"
+                  aria-label="delete"
                   onClick={() => handleDeleteGoal(index)}
-                  sx={{ borderColor: 'orange', color: 'orange', '&:hover': { borderColor: 'darkorange', color: 'darkorange' } }}
+                  sx={{
+                    color: 'darkred',
+                    '&:hover': {
+                      backgroundColor: 'rgba(139, 0, 0, 0.1)',
+                    },
+                  }}
                 >
-                  Delete
-                </Button>
+                  <DeleteIcon />
+                </IconButton>
               </ListItem>
             ))}
           </List>
