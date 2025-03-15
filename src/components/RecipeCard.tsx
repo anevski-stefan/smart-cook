@@ -18,7 +18,7 @@ import {
   SignalCellularAlt as SignalCellularAltIcon,
 } from '@mui/icons-material';
 import { useTranslation } from '@/hooks/useTranslation';
-import { Recipe } from '@/types/recipe';
+import { Recipe, DifficultyLevel } from '@/types/recipe';
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -26,6 +26,17 @@ interface RecipeCardProps {
   onEdit?: (recipe: Recipe) => void;
   onDelete?: (recipe: Recipe) => void;
 }
+
+const getDifficultyTranslationKey = (difficulty: DifficultyLevel): 'search.complexityLevels.easy' | 'search.complexityLevels.medium' | 'search.complexityLevels.hard' => {
+  switch (difficulty.toLowerCase() as DifficultyLevel) {
+    case 'easy':
+      return 'search.complexityLevels.easy';
+    case 'medium':
+      return 'search.complexityLevels.medium';
+    case 'hard':
+      return 'search.complexityLevels.hard';
+  }
+};
 
 export default function RecipeCard({ recipe, onClick, onEdit, onDelete }: RecipeCardProps) {
   const { t } = useTranslation();
@@ -65,7 +76,7 @@ export default function RecipeCard({ recipe, onClick, onEdit, onDelete }: Recipe
             <>
               <SignalCellularAltIcon fontSize="small" color="action" sx={{ ml: 1 }} />
               <Typography variant="body2" color="text.secondary">
-                {t(`search.complexityLevels.${recipe.difficulty.toLowerCase()}`)}
+                {t(getDifficultyTranslationKey(recipe.difficulty))}
               </Typography>
             </>
           )}
