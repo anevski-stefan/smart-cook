@@ -16,6 +16,8 @@ export const en = {
     forgotPassword: "Forgot password?",
     noAccount: "Don't have an account?",
     noResults: "No results found",
+    typeMessage: "Type your message...",
+    send: "Send",
   },
   navigation: {
     home: "Home",
@@ -27,7 +29,8 @@ export const en = {
     savedRecipes: "Saved Recipes",
     myRecipes: "My Recipes",
     profile: "Profile",
-    education: "Education"
+    education: "Education",
+    chat: "Chat Assistant"
   },
   recipe: {
     ingredients: "Ingredients",

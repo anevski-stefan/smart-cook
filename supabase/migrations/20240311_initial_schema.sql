@@ -159,3 +159,26 @@ RETURNS numeric AS $$
   FROM public.recipe_ratings
   WHERE recipe_ratings.recipe_id = $1;
 $$ LANGUAGE sql SECURITY DEFINER;
+
+   -- In Supabase SQL editor:
+   insert into storage.buckets (id, name, public)
+   values ('images', 'images', true);
+
+   -- Allow authenticated users to upload files
+   create policy "Allow authenticated uploads"
+   on storage.objects
+   for insert
+   to authenticated
+   with check (
+     bucket_id = 'images' AND
+     auth.uid() = (storage.foldername(name))[2]::uuid
+   );
+
+   -- Allow public access to read files
+   create policy "Allow public read access"
+   on storage.objects
+   for select
+   to public
+   using (bucket_id = 'images');
+
+   

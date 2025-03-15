@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSelector } from './LanguageSelector';
 
-type NavigationPage = 'search' | 'scan' | 'education';
+type NavigationPage = 'search' | 'scan' | 'education' | 'chat';
 type SettingsKey = 'profile' | 'saved-recipes' | 'shopping-list' | 'ingredients' | 'my-recipes' | 'sign-out';
 type SettingsLabel = 'navigation.profile' | 'navigation.savedRecipes' | 'navigation.shoppingList' | 'recipe.ingredients' | 'navigation.myRecipes' | 'common.signOut';
 
@@ -32,7 +32,7 @@ interface SettingsItem {
   label: SettingsLabel;
 }
 
-const pages: NavigationPage[] = ['search', 'scan', 'education'];
+const pages: NavigationPage[] = ['search', 'scan', 'education', 'chat'];
 const settings: SettingsItem[] = [
   { key: 'profile', label: 'navigation.profile' },
   { key: 'my-recipes', label: 'navigation.myRecipes' },
@@ -42,7 +42,7 @@ const settings: SettingsItem[] = [
   { key: 'sign-out', label: 'common.signOut' }
 ];
 
-const getTranslationKey = (page: NavigationPage): 'common.search' | 'navigation.scan' | 'navigation.education' => {
+const getTranslationKey = (page: NavigationPage): 'common.search' | 'navigation.scan' | 'navigation.education' | 'navigation.chat' => {
   switch (page) {
     case 'search':
       return 'common.search';
@@ -50,6 +50,8 @@ const getTranslationKey = (page: NavigationPage): 'common.search' | 'navigation.
       return 'navigation.scan';
     case 'education':
       return 'navigation.education';
+    case 'chat':
+      return 'navigation.chat';
   }
 };
 

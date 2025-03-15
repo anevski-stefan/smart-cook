@@ -16,6 +16,8 @@ export const de = {
     forgotPassword: "Passwort vergessen?",
     noAccount: "Noch kein Konto?",
     noResults: "Keine Ergebnisse gefunden",
+    typeMessage: "Nachricht eingeben...",
+    send: "Senden",
   },
   navigation: {
     home: "Startseite",
@@ -27,7 +29,8 @@ export const de = {
     savedRecipes: "Gespeicherte Rezepte",
     myRecipes: "Meine Rezepte",
     profile: "Profil",
-    education: "Bildung"
+    education: "Bildung",
+    chat: "Chat-Assistent"
   },
   recipe: {
     ingredients: "Zutaten",
