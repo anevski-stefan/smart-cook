@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import {
   Container,
@@ -17,6 +16,10 @@ import {
   ListItem,
   ListItemText,
   IconButton,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
 } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -24,6 +27,10 @@ import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/utils/supabase-client';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { DatePicker } from '@mui/x-date-pickers';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { gapi } from 'gapi-script';
 
 const categories = [
   'Weekly Calories',
@@ -45,16 +52,22 @@ export default function ProfilePage() {
   });
   const [goal, setGoal] = useState('');
   const [description, setDescription] = useState('');
-  const [goals, setGoals] = useState<{ category: string; description: string }[]>([]);
+  const [goals, setGoals] = useState<{ category: string; description: string; date?: Date }[]>([]);
+  const [open, setOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [currentGoalIndex, setCurrentGoalIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    // Load goals from local storage on component mount
     const savedGoals = localStorage.getItem('weeklyGoals');
-    console.log("Loaded Goals:", savedGoals);
     if (savedGoals) {
-      setGoals(JSON.parse(savedGoals));
+      const parsedGoals = JSON.parse(savedGoals).map((goal: { category: string; description: string; date?: string }) => ({
+        ...goal,
+        date: goal.date ? new Date(goal.date) : undefined,
+      }));
+      setGoals(parsedGoals);
     }
   }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -109,12 +122,70 @@ export default function ProfilePage() {
     localStorage.setItem('weeklyGoals', JSON.stringify(newGoals));
     setGoal('');
     setDescription('');
+    setCurrentGoalIndex(newGoals.length - 1);
+    setOpen(true);
   };
 
   const handleDeleteGoal = (index: number) => {
     const updatedGoals = goals.filter((_, i) => i !== index);
     setGoals(updatedGoals);
     localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
+  };
+
+  const handleClose = () => setOpen(false);
+
+  const handleDateChange = (date: Date | null) => {
+    setSelectedDate(date);
+  };
+
+  const handleSaveToGoogleCalendar = () => {
+    gapi.load('client:auth2', () => {
+      gapi.client.init({
+        apiKey: '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',
+        clientId: 'client id 494079691849-1njeki9km8niqsfjrit55valechdlhga.apps.googleusercontent.com',
+        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+        scope: 'https://www.googleapis.com/auth/calendar.events',
+      }).then(() => {
+        gapi.auth2.getAuthInstance().signIn().then(() => {
+          const calendar = gapi.client.calendar;
+          if (selectedDate && goals[currentGoalIndex as number]) {
+            calendar.events.insert({
+              calendarId: 'primary',
+              resource: {
+                summary: goals[currentGoalIndex as number].category,
+                description: goals[currentGoalIndex as number].description,
+                start: {
+                  dateTime: selectedDate.toISOString(),
+                  timeZone: 'Europe/Skopje',
+                },
+                end: {
+                  dateTime: new Date(selectedDate.getTime() + 60 * 60 * 1000).toISOString(),
+                  timeZone: 'Europe/Skopje',
+                },
+              },
+            }).then(() => {
+              console.log('Event created');
+              setMessage({
+                type: 'success',
+                text: 'Event saved to Google Calendar!',
+              });
+            }).catch((error: unknown) => {
+              console.error('Error creating event:', error);
+              setMessage({
+                type: 'error',
+                text: 'Failed to save event to Google Calendar.',
+              });
+            });
+          }
+        });
+      });
+    });
+    handleClose();
+  };
+
+  const handleOpenCalendar = (index: number) => {
+    setCurrentGoalIndex(index);
+    setOpen(true);
   };
 
   return (
@@ -235,25 +306,59 @@ export default function ProfilePage() {
               <ListItem key={index} sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <ListItemText
                   primary={goal.category}
-                  secondary={goal.description}
+                  secondary={`${goal.description} ${goal.date ? `- ${goal.date.toLocaleDateString()}` : ''}`}
                 />
-                <IconButton
-                  edge="end"
-                  aria-label="delete"
-                  onClick={() => handleDeleteGoal(index)}
-                  sx={{
-                    color: 'darkred',
-                    '&:hover': {
-                      backgroundColor: 'rgba(139, 0, 0, 0.1)',
-                    },
-                  }}
-                >
-                  <DeleteIcon />
-                </IconButton>
+                <div>
+                  <Button onClick={() => handleOpenCalendar(index)}>Select Days</Button>
+                  <IconButton
+                    edge="end"
+                    aria-label="delete"
+                    onClick={() => handleDeleteGoal(index)}
+                    sx={{
+                      color: 'darkred',
+                      '&:hover': {
+                        backgroundColor: 'rgba(139, 0, 0, 0.1)',
+                      },
+                    }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </div>
               </ListItem>
             ))}
           </List>
         </Paper>
+
+        <Dialog open={open} onClose={handleClose}>
+          <DialogTitle>Select Days</DialogTitle>
+          <DialogContent>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Select Date"
+                value={selectedDate}
+                onChange={handleDateChange}
+                slotProps={{ textField: { fullWidth: true } }}
+              />
+            </LocalizationProvider>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={() => {
+              if (selectedDate && currentGoalIndex !== null) {
+                const updatedGoals = [...goals];
+                updatedGoals[currentGoalIndex].date = selectedDate;
+                setGoals(updatedGoals);
+                localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
+                setMessage({
+                  type: 'success',
+                  text: 'Date saved locally!',
+                });
+              }
+              handleClose();
+            }}>Save Locally</Button>
+            <Button onClick={handleSaveToGoogleCalendar}>Save to Google Calendar</Button>
+          </DialogActions>
+        </Dialog>
 
         {message && (
           <Snackbar
@@ -274,4 +379,4 @@ export default function ProfilePage() {
       </Container>
     </ProtectedRoute>
   );
-} 
+}
