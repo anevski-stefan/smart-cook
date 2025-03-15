@@ -65,7 +65,11 @@ export default function RecipeCard({ recipe, onClick, onEdit, onDelete }: Recipe
             <>
               <SignalCellularAltIcon fontSize="small" color="action" sx={{ ml: 1 }} />
               <Typography variant="body2" color="text.secondary">
-                {t(`search.complexityLevels.${recipe.difficulty}`)}
+                {recipe.difficulty && 
+                  (recipe.difficulty.toLowerCase() === 'easy' ? t('search.complexityLevels.easy') :
+                   recipe.difficulty.toLowerCase() === 'medium' ? t('search.complexityLevels.medium') :
+                   recipe.difficulty.toLowerCase() === 'hard' ? t('search.complexityLevels.hard') :
+                   recipe.difficulty)}
               </Typography>
             </>
           )}

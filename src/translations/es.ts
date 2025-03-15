@@ -185,7 +185,10 @@ export const es = {
     complexityLevels: {
       easy: "Fácil",
       medium: "Medio",
-      hard: "Difícil"
+      hard: "Difícil",
+      Easy: "Fácil",
+      Medium: "Medio",
+      Hard: "Difícil"
     }
   },
   profile: {
