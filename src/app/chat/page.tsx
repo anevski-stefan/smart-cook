@@ -80,6 +80,8 @@ export default function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
+  const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   // Add auto-resize functionality for the input
   const textFieldRef = useRef<HTMLTextAreaElement>(null);
@@ -658,6 +660,41 @@ export default function ChatPage() {
     
     // Force refresh the chat list
     loadChats();
+  };
+
+  const saveMeal = async (message: Message) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('meals')
+        .insert([
+          {
+            title: message.text.split('\n')[0], // First line as title
+            description: message.text,
+            type: 'AI_GENERATED',
+            user_id: user?.id,
+            nutritional_info: {
+              calories: 0,
+              protein: 0,
+              carbs: 0,
+              fat: 0
+            },
+            ingredients: [],
+            instructions: []
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setNotification({ type: 'success', message: t('notifications.mealSaved') });
+    } catch (error) {
+      console.error('Error saving meal:', error);
+      setNotification({ type: 'error', message: t('notifications.errorSavingMeal') });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -1240,99 +1277,101 @@ export default function ChatPage() {
                   display: 'flex', 
                   alignItems: 'flex-start', 
                   gap: 1,
+                  mt: 1
                 }}>
-                  {message.sender === 'assistant' && message.text.includes('Recipe:') && (
-                    <Tooltip title={t(TRANSLATION_KEYS.save)} placement="top">
-                      <IconButton
-                        size={isMobile ? "small" : "medium"}
-                        onClick={async () => {
-                          const recipe = {
-                            title: message.text.match(/Recipe:\s*([^\n]+)/)?.[1] || 'New Recipe',
-                            instructions: message.text
-                              .match(/Instructions:[\s\S]*?(?=\n\n|$)/i)?.[0]
-                              ?.split('\n')
-                              .slice(1)
-                              .filter(line => line.trim())
-                              .map(line => ({ text: line.replace(/^\d+\.\s*/, '').trim() })) || [],
-                            ingredients: message.text
-                              .match(/Ingredients:[\s\S]*?(?=Instructions|$)/i)?.[0]
-                              ?.split('\n')
-                              .slice(1)
-                              .filter(line => line.trim())
-                              .map(line => {
-                                const [name, amount = '1', unit = 'piece'] = line.split(':').map(s => s.trim());
-                                return { name, amount, unit };
-                              }) || [],
-                            readyInMinutes: parseInt(message.text.match(/Time:\s*(\d+)/i)?.[1] || '30'),
-                            difficulty: (message.text.match(/Difficulty:\s*(easy|medium|hard)/i)?.[1] || 'medium') as 'easy' | 'medium' | 'hard'
-                          };
-
-                          try {
-                            const { data, error } = await supabase
-                              .from('recipes')
-                              .insert([{
-                                user_id: user?.id,
-                                title: recipe.title,
-                                instructions: recipe.instructions,
-                                ingredients: recipe.ingredients,
-                                cooking_time: recipe.readyInMinutes,
-                                difficulty: recipe.difficulty,
-                                cuisine: 'Custom',
-                                servings: 4,
-                                image: '',
-                                description: `Custom recipe created from chat: ${recipe.title}`,
-                                nutritional_info: {
-                                  calories: 0,
-                                  protein: 0,
-                                  carbs: 0,
-                                  fat: 0
-                                }
-                              }])
-                              .select()
-                              .single();
-
-                            if (error) throw error;
-                            
-                            setMessages(prev => [...prev, {
-                              id: Date.now().toString(),
-                              text: 'Recipe saved successfully!',
-                              sender: 'assistant',
-                              timestamp: new Date()
-                            }]);
-                          } catch (error) {
-                            setMessages(prev => [...prev, {
-                              id: Date.now().toString(),
-                              text: 'Failed to save recipe. Please try again.',
-                              sender: 'assistant',
-                              timestamp: new Date()
-                            }]);
-                          }
-                        }}
-                        sx={{
-                          opacity: 0.7,
-                          '&:hover': { 
-                            opacity: 1,
-                            bgcolor: alpha(theme.palette.action.hover, 0.8),
-                          },
-                          ml: 1,
-                          flexShrink: 0,
-                        }}
-                      >
-                        <SaveIcon fontSize={isMobile ? "small" : "medium"} />
-                      </IconButton>
-                    </Tooltip>
-                  )}
                   {message.sender === 'assistant' && (() => {
-                    // Check for required meal content before showing the button
-                    const mealMatch = message.text.match(/Meal:\s*([^\n]+)/);
-                    const typeMatch = message.text.toLowerCase().match(/(breakfast|lunch|dinner|snack)/);
-                    const caloriesMatch = message.text.match(/Calories:\s*(\d+)/i);
+                    // Simplified meal content detection
+                    const extractMealInfo = (text: string) => {
+                      // Look for ingredients section with more flexible pattern matching
+                      const ingredientsMatch = text.match(/ingredients:?[\s\S]*?(?=instructions:?|$)/i);
+                      const instructionsMatch = text.match(/instructions:?[\s\S]*?(?=(?:cooking time|difficulty|$))/i);
+                      
+                      // Extract ingredients with improved parsing
+                      const ingredients = ingredientsMatch ? ingredientsMatch[0]
+                        .split('\n')
+                        .slice(1) // Skip the "Ingredients:" line
+                        .map(line => line.trim())
+                        .filter(line => line && !line.toLowerCase().includes('ingredients'))
+                        .map(line => {
+                          // Try to parse amount, unit, and name with more flexible pattern
+                          const match = line.match(/^(?:[-•*]?\s*)?(\d+(?:\/\d+)?(?:\.\d+)?)\s*([a-zA-Z]+)?\s*(.+)$/);
+                          if (match) {
+                            const amount = match[1].includes('/') ? 
+                              eval(match[1].split('/').reduce((a, b) => String(Number(a) / Number(b)))) : 
+                              parseFloat(match[1]);
+                            return {
+                              name: match[3].trim(),
+                              amount: isNaN(amount) ? 1 : amount,
+                              unit: match[2] || 'piece'
+                            };
+                          }
+                          return {
+                            name: line.replace(/^[-•*]\s*/, '').trim(),
+                            amount: 1,
+                            unit: 'piece'
+                          };
+                        }) : [];
+
+                      // Extract instructions with improved parsing
+                      const instructions = instructionsMatch ? instructionsMatch[0]
+                        .split('\n')
+                        .slice(1) // Skip the "Instructions:" line
+                        .map(line => line.trim())
+                        .filter(line => line && !line.toLowerCase().includes('instructions'))
+                        .map(line => {
+                          const text = line.replace(/^(?:\d+\.\s*|[-•*]\s*)/, '').trim();
+                          // Try to find duration in the step
+                          const durationMatch = text.match(/(\d+)[\s-]*(minutes?|mins?|hours?)/i);
+                          const duration = durationMatch ? 
+                            (durationMatch[2].toLowerCase().startsWith('hour') ? 
+                              parseInt(durationMatch[1]) * 60 : 
+                              parseInt(durationMatch[1])) : 
+                            null;
+
+                          return {
+                            text,
+                            duration: duration || null,
+                            timer_required: duration !== null
+                          };
+                        }) : [];
+
+                      // Try to find a title - look for any prominent text before ingredients
+                      const titleMatch = text.match(/\*\*([^*]+)\*\*/) || // Match text between ** **
+                                      text.match(/^([^\n]+)(?=\n+ingredients:)/i) || 
+                                      text.match(/^(?:\*\*)?([^*\n]+)(?:\*\*)?\s*$/m);
+                      const title = titleMatch ? titleMatch[1].trim() : 'New Recipe';
+
+                      // Try to find cooking time and difficulty
+                      const timeMatch = text.match(/(?:cooking time|time):\s*(?:approximately\s*)?(\d+)\s*(?:minutes?|mins?)/i);
+                      const difficultyMatch = text.match(/difficulty(?:\s*level)?:\s*(easy|medium|hard)/i);
+
+                      // Only show the button if we have both ingredients and instructions
+                      if (ingredients.length > 0 && instructions.length > 0) {
+                        return {
+                          title,
+                          ingredients,
+                          instructions,
+                          cooking_time: timeMatch ? parseInt(timeMatch[1]) : 30,
+                          difficulty: (difficultyMatch ? difficultyMatch[1].toLowerCase() : 'medium') as 'easy' | 'medium' | 'hard',
+                          servings: 4,
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                          nutritional_info: {
+                            calories: 0,
+                            protein: 0,
+                            carbs: 0,
+                            fat: 0,
+                            fiber: 0
+                          }
+                        };
+                      }
+                      return null;
+                    };
+
+                    const mealInfo = extractMealInfo(message.text);
                     
-                    const hasValidContent = mealMatch && 
-                                         typeMatch && 
-                                         caloriesMatch && 
-                                         parseInt(caloriesMatch[1]) > 0 &&
-                                         mealMatch[1].trim().length >= 2;
+                    // Show button if it looks like a meal description
+                    const hasValidContent = mealInfo !== null;
 
                     return hasValidContent && (
                       <Tooltip title="Add to my meals" placement="top">
@@ -1340,61 +1379,97 @@ export default function ChatPage() {
                           size={isMobile ? "small" : "medium"}
                           onClick={async () => {
                             try {
-                              const meal = {
-                                title: mealMatch[1].trim(),
-                                description: message.text,
-                                type: typeMatch[1] as 'breakfast' | 'lunch' | 'dinner' | 'snack',
-                                calories: parseInt(caloriesMatch[1]),
-                                protein: parseInt(message.text.match(/Protein:\s*(\d+)/i)?.[1] || '0'),
-                                carbs: parseInt(message.text.match(/Carbs:\s*(\d+)/i)?.[1] || '0'),
-                                fat: parseInt(message.text.match(/Fat:\s*(\d+)/i)?.[1] || '0')
-                              };
+                              // Format ingredients properly
+                              const formattedIngredients = mealInfo.ingredients.map(ing => ({
+                                name: ing.name,
+                                amount: typeof ing.amount === 'number' ? ing.amount : parseFloat(ing.amount) || 1,
+                                unit: ing.unit || 'piece'
+                              }));
+
+                              // Format instructions properly
+                              const formattedInstructions = mealInfo.instructions.map(inst => ({
+                                text: inst.text,
+                                duration: inst.duration || null,
+                                timer_required: inst.timer_required || false
+                              }));
+
+                              console.log('Saving meal with data:', {
+                                title: mealInfo.title,
+                                ingredients: formattedIngredients,
+                                instructions: formattedInstructions
+                              });
 
                               const { data, error } = await supabase
                                 .from('meals')
                                 .insert([{
                                   user_id: user?.id,
-                                  title: meal.title,
-                                  description: meal.description,
-                                  type: meal.type,
-                                  nutritional_info: {
-                                    calories: meal.calories,
-                                    protein: meal.protein,
-                                    carbs: meal.carbs,
-                                    fat: meal.fat
-                                  }
+                                  title: mealInfo.title,
+                                  description: message.text,
+                                  type: 'dinner',
+                                  nutritional_info: mealInfo.nutritional_info,
+                                  ingredients: formattedIngredients,
+                                  instructions: formattedInstructions,
+                                  created_at: mealInfo.created_at,
+                                  updated_at: mealInfo.updated_at,
+                                  cooking_time: mealInfo.cooking_time,
+                                  servings: mealInfo.servings
                                 }])
                                 .select()
                                 .single();
 
-                              if (error) throw error;
+                              if (error) {
+                                console.error('Supabase error:', error);
+                                throw error;
+                              }
                               
                               setMessages(prev => [...prev, {
                                 id: Date.now().toString(),
-                                text: 'Meal saved successfully!',
+                                text: t('notifications.mealSaved'),
                                 sender: 'assistant',
                                 timestamp: new Date()
                               }]);
                             } catch (error: any) {
+                              console.error('Error saving meal:', error);
+                              console.error('Error details:', error.message, error.details);
                               setMessages(prev => [...prev, {
                                 id: Date.now().toString(),
-                                text: `Failed to save meal: ${error.message}`,
+                                text: `Failed to save meal: ${error.message || 'Unknown error'}`,
                                 sender: 'assistant',
                                 timestamp: new Date()
                               }]);
                             }
                           }}
                           sx={{
-                            opacity: 0.7,
+                            opacity: 0.8,
+                            backgroundColor: theme.palette.mode === 'light' ? 
+                              alpha(theme.palette.primary.main, 0.08) : 
+                              alpha(theme.palette.primary.main, 0.15),
+                            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                            color: theme.palette.primary.main,
+                            transition: 'all 0.2s ease',
                             '&:hover': { 
                               opacity: 1,
-                              bgcolor: alpha(theme.palette.action.hover, 0.8),
+                              backgroundColor: theme.palette.mode === 'light' ? 
+                                alpha(theme.palette.primary.main, 0.12) : 
+                                alpha(theme.palette.primary.main, 0.25),
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                              transform: 'translateY(-1px)',
+                            },
+                            '&:active': {
+                              transform: 'translateY(0)',
                             },
                             ml: 1,
                             flexShrink: 0,
+                            backdropFilter: 'blur(8px)',
                           }}
                         >
-                          <AddIcon fontSize={isMobile ? "small" : "medium"} />
+                          <AddIcon 
+                            fontSize={isMobile ? "small" : "medium"}
+                            sx={{ 
+                              transition: 'transform 0.2s ease',
+                              '& > *': { strokeWidth: 2 }
+                            }} 
+                          />
                         </IconButton>
                       </Tooltip>
                     );

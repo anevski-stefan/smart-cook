@@ -37,12 +37,12 @@ export interface Recipe {
   nutritionalInfo?: NutritionalInfo;
   ingredients: RecipeIngredient[];
   instructions: Instruction[];
-  userId?: string;
+  user_id?: string;
   createdAt?: string;
   updatedAt?: string;
   cuisine_type?: string;
   dietary_restrictions?: string[];
 }
 
-export type CreateRecipeInput = Omit<Recipe, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
+export type CreateRecipeInput = Omit<Recipe, 'id' | 'user_id' | 'createdAt' | 'updatedAt'>;
 export type UpdateRecipeInput = Partial<CreateRecipeInput>; 

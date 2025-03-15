@@ -24,8 +24,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSelector } from './LanguageSelector';
 
 type NavigationPage = 'search' | 'scan' | 'education' | 'chat';
-type SettingsKey = 'profile' | 'saved-recipes' | 'shopping-list' | 'ingredients' | 'my-recipes' | 'sign-out';
-type SettingsLabel = 'navigation.profile' | 'navigation.savedRecipes' | 'navigation.shoppingList' | 'recipe.ingredients' | 'navigation.myRecipes' | 'common.signOut';
+type SettingsKey = 'profile' | 'saved-recipes' | 'shopping-list' | 'ingredients' | 'my-recipes' | 'my-meals' | 'sign-out';
+type SettingsLabel = 'navigation.profile' | 'navigation.savedRecipes' | 'navigation.shoppingList' | 'recipe.ingredients' | 'navigation.myRecipes' | 'navigation.myMeals' | 'common.signOut';
 
 interface SettingsItem {
   key: SettingsKey;
@@ -36,6 +36,7 @@ const pages: NavigationPage[] = ['search', 'scan', 'education', 'chat'];
 const settings: SettingsItem[] = [
   { key: 'profile', label: 'navigation.profile' },
   { key: 'my-recipes', label: 'navigation.myRecipes' },
+  { key: 'my-meals', label: 'navigation.myMeals' },
   { key: 'saved-recipes', label: 'navigation.savedRecipes' },
   { key: 'shopping-list', label: 'navigation.shoppingList' },
   { key: 'ingredients', label: 'recipe.ingredients' },
@@ -89,7 +90,9 @@ export default function Navbar() {
     } else if (path === '/ingredients') {
       router.push('/ingredients');
     } else if (path === '/my-recipes') {
-      router.push('/recipes/my-recipes');
+      router.push('/account/my-recipes');
+    } else if (path === '/my-meals') {
+      router.push('/meals');
     } else {
       router.push(path);
     }

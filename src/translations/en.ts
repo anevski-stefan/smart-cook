@@ -28,6 +28,7 @@ export const en = {
     shoppingList: "Shopping List",
     savedRecipes: "Saved Recipes",
     myRecipes: "My Recipes",
+    myMeals: "My Meals",
     profile: "Profile",
     education: "Education",
     chat: "Chat Assistant"
@@ -249,6 +250,10 @@ export const en = {
       ounce: "ounce",
       ounces: "ounces",
     },
+  },
+  notifications: {
+    mealSaved: "Meal saved successfully!",
+    errorSavingMeal: "Failed to save meal"
   },
   footer: {
     copyright: "© 2024 Smart Cook. All rights reserved.",
