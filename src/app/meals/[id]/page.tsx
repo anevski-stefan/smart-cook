@@ -18,7 +18,6 @@ import {
 import { format } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
 import { useTranslation } from '@/hooks/useTranslation';
-import Navbar from '@/components/Navbar';
 import NutritionalInfo from '@/components/NutritionalInfo';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
@@ -103,7 +102,6 @@ export default function MealPage({ params }: MealPageProps) {
   if (loading) {
     return (
       <ProtectedRoute>
-        <Navbar />
         <Box
           sx={{
             display: 'flex',
@@ -124,7 +122,6 @@ export default function MealPage({ params }: MealPageProps) {
 
   return (
     <ProtectedRoute>
-      <Navbar />
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Grid container spacing={4}>
           {/* Left Column */}

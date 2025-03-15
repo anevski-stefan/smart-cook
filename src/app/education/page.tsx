@@ -15,7 +15,6 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import Navbar from '@/components/Navbar';
 import { useTranslation } from '@/hooks/useTranslation';
 import CookingTutorials from '@/components/education/CookingTutorials';
 import IngredientGuide from '@/components/education/IngredientGuide';
@@ -88,7 +87,6 @@ export default function EducationPage() {
 
   return (
     <>
-      <Navbar />
       <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 4, sm: 8 } }}>
         <Typography 
           variant="h3" 

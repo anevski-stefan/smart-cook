@@ -13,7 +13,6 @@ import {
   Alert,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import Navbar from '@/components/Navbar';
 import RecipeCard from '@/components/RecipeCard';
 import RecipeFilterSidebar, { RecipeFilters } from '@/components/RecipeFilterSidebar';
 import { Recipe } from '@/types/recipe';
@@ -180,145 +179,142 @@ export default function SearchPage() {
   };
 
   return (
-    <>
-      <Navbar />
-      <Box 
-        component="main"
-        sx={{ 
-          display: 'flex',
-          minHeight: 'calc(100vh - 64px)',
-          maxWidth: '100%',
-          position: 'relative'
-        }}
-      >
-        <RecipeFilterSidebar
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+    <Box 
+      component="main"
+      sx={{ 
+        display: 'flex',
+        minHeight: 'calc(100vh - 64px)',
+        maxWidth: '100%',
+        position: 'relative'
+      }}
+    >
+      <RecipeFilterSidebar
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-        <Box sx={{ 
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          width: '100%',
-          maxWidth: '100%'
-        }}>
-          <Container 
-            maxWidth="lg" 
-            sx={{ 
-              mt: 4,
-              mb: 8,
-              px: { xs: 2, sm: 3 },
-              width: '100%',
-              maxWidth: '100% !important'
-            }}
-          >
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              mb: 4,
-              overflow: 'hidden'
-            }}>
-              <Typography variant="h4" component="h1" noWrap>
-                {t('search.searchRecipes')}
-              </Typography>
-            </Box>
+      <Box sx={{ 
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%',
+        maxWidth: '100%'
+      }}>
+        <Container 
+          maxWidth="lg" 
+          sx={{ 
+            mt: 4,
+            mb: 8,
+            px: { xs: 2, sm: 3 },
+            width: '100%',
+            maxWidth: '100% !important'
+          }}
+        >
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            mb: 4,
+            overflow: 'hidden'
+          }}>
+            <Typography variant="h4" component="h1" noWrap>
+              {t('search.searchRecipes')}
+            </Typography>
+          </Box>
 
-            <Box sx={{ mb: 4, maxWidth: '100%' }}>
-              <TextField
-                fullWidth
-                placeholder={t('search.searchRecipes')}
-                value={filters.searchTerm}
-                onChange={(e) => {
-                  setFilters({ ...filters, searchTerm: e.target.value });
-                }}
-                variant="outlined"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => debouncedSearch(filters)}
-                        aria-label="search recipes"
-                        disabled={loading}
-                        sx={{
-                          mr: 1,
-                          color: '#666666',
-                          '&:hover': {
-                            backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                          }
-                        }}
-                      >
-                        <SearchIcon sx={{ fontSize: 24 }} />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                  sx: {
-                    backgroundColor: '#F5F5F5',
-                    borderRadius: '12px',
-                    '& fieldset': { border: 'none' },
-                    '&:hover fieldset': { border: 'none' },
-                    '&.Mui-focused fieldset': { border: 'none' }
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    debouncedSearch(filters);
-                  }
-                }}
-              />
-            </Box>
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 4 }}>
-                {error}
-              </Alert>
-            )}
-
-            {loading && page === 1 ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : recipes && recipes.length > 0 ? (
-              <>
-                <Grid container spacing={3}>
-                  {recipes.map((recipe, index) => (
-                    <Grid 
-                      item 
-                      key={`${recipe.id}-${index}`} 
-                      xs={12} 
-                      sm={6} 
-                      md={4}
-                      ref={index === recipes.length - 1 ? lastRecipeElementRef : undefined}
+          <Box sx={{ mb: 4, maxWidth: '100%' }}>
+            <TextField
+              fullWidth
+              placeholder={t('search.searchRecipes')}
+              value={filters.searchTerm}
+              onChange={(e) => {
+                setFilters({ ...filters, searchTerm: e.target.value });
+              }}
+              variant="outlined"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => debouncedSearch(filters)}
+                      aria-label="search recipes"
+                      disabled={loading}
+                      sx={{
+                        mr: 1,
+                        color: '#666666',
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                        }
+                      }}
                     >
-                      <RecipeCard 
-                        recipe={recipe} 
-                        onClick={() => router.push(`/recipes/${recipe.id}`)}
-                      />
-                    </Grid>
-                  ))}
-                </Grid>
-                {loading && (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 4 }}>
-                    <CircularProgress />
-                  </Box>
-                )}
-                {!loading && !hasMore && recipes.length > 0 && (
-                  <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
-                    {t('recipe.noMoreRecipes')}
-                  </Typography>
-                )}
-              </>
-            ) : !loading && (
-              <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
-                {filters.searchTerm ? t('recipe.noRecipesFound') : t('search.enterSearchTerm')}
-              </Typography>
-            )}
-          </Container>
-        </Box>
+                      <SearchIcon sx={{ fontSize: 24 }} />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                sx: {
+                  backgroundColor: '#F5F5F5',
+                  borderRadius: '12px',
+                  '& fieldset': { border: 'none' },
+                  '&:hover fieldset': { border: 'none' },
+                  '&.Mui-focused fieldset': { border: 'none' }
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  debouncedSearch(filters);
+                }
+              }}
+            />
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 4 }}>
+              {error}
+            </Alert>
+          )}
+
+          {loading && page === 1 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : recipes && recipes.length > 0 ? (
+            <>
+              <Grid container spacing={3}>
+                {recipes.map((recipe, index) => (
+                  <Grid 
+                    item 
+                    key={`${recipe.id}-${index}`} 
+                    xs={12} 
+                    sm={6} 
+                    md={4}
+                    ref={index === recipes.length - 1 ? lastRecipeElementRef : undefined}
+                  >
+                    <RecipeCard 
+                      recipe={recipe} 
+                      onClick={() => router.push(`/recipes/${recipe.id}`)}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+              {loading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 4 }}>
+                  <CircularProgress />
+                </Box>
+              )}
+              {!loading && !hasMore && recipes.length > 0 && (
+                <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
+                  {t('recipe.noMoreRecipes')}
+                </Typography>
+              )}
+            </>
+          ) : !loading && (
+            <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
+              {filters.searchTerm ? t('recipe.noRecipesFound') : t('search.enterSearchTerm')}
+            </Typography>
+          )}
+        </Container>
       </Box>
-    </>
+    </Box>
   );
 } 

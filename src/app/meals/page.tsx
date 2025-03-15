@@ -26,7 +26,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@/utils/supabase/client';
 import { useTranslation } from '@/hooks/useTranslation';
-import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 interface Meal {
@@ -94,7 +93,6 @@ export default function MealsPage() {
   if (loading) {
     return (
       <ProtectedRoute>
-        <Navbar />
         <Box
           sx={{
             display: 'flex',
@@ -111,7 +109,6 @@ export default function MealsPage() {
 
   return (
     <ProtectedRoute>
-      <Navbar />
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Box
           sx={{

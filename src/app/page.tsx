@@ -10,7 +10,6 @@ import {
   Assistant,
   Restaurant
 } from '@mui/icons-material';
-import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -75,131 +74,128 @@ export default function Home() {
   ];
 
   return (
-    <>
-      <Navbar />
-      <Container 
-        maxWidth="lg" 
-        sx={{ 
-          mt: { xs: 4, md: 8 }, 
-          mb: 8,
-          backgroundImage: 'url(/background.jpg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          borderRadius: 2,
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-          p: { xs: 2, md: 4 },
-          color: 'white',
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    <Container 
+      maxWidth="lg" 
+      sx={{ 
+        mt: { xs: 4, md: 8 }, 
+        mb: 8,
+        backgroundImage: 'url(/background.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        borderRadius: 2,
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+        p: { xs: 2, md: 4 },
+        color: 'white',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          gap: { xs: 3, md: 4 },
         }}
       >
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center',
-            gap: { xs: 3, md: 4 },
-          }}
-        >
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          gap: 2,
+          mb: { xs: 1, md: 2 }
+        }}>
           <Box sx={{ 
             display: 'flex', 
-            flexDirection: 'column',
             alignItems: 'center', 
-            gap: 2,
-            mb: { xs: 1, md: 2 }
+            gap: 2 
           }}>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 2 
-            }}>
-              <Restaurant sx={{ fontSize: { xs: 40, md: 56 }, color: 'primary.main' }} />
-              <Typography 
-                variant={isMobile ? "h3" : "h2"} 
-                component="h1" 
-                sx={{ 
-                  fontWeight: 700,
-                  color: 'white',
-                  letterSpacing: '-0.5px',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.1)'
+            <Restaurant sx={{ fontSize: { xs: 40, md: 56 }, color: 'primary.main' }} />
+            <Typography 
+              variant={isMobile ? "h3" : "h2"} 
+              component="h1" 
+              sx={{ 
+                fontWeight: 700,
+                color: 'white',
+                letterSpacing: '-0.5px',
+                textShadow: '1px 1px 2px rgba(0,0,0,0.1)'
+              }}
+            >
+              {t('common.welcome')}
+            </Typography>
+          </Box>
+          {/* <LanguageSelector /> */}
+        </Box>
+
+        <Typography 
+          variant={isMobile ? "h6" : "h5"} 
+          sx={{ 
+            maxWidth: 800,
+            mb: { xs: 2, md: 4 },
+            px: 2,
+            fontStyle: 'italic',
+            color: 'white',
+            textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
+          }}
+        >
+          {t('home.subtitle')}
+        </Typography>
+
+        <Grid container spacing={3}>
+          {features.map((feature) => (
+            <Grid item xs={12} sm={6} md={4} key={feature.title}>
+              <Paper
+                elevation={2}
+                sx={{
+                  p: 3,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 4,
+                  },
+                  borderRadius: 2,
+                  backgroundColor: 'rgba(255, 255, 255, 0.8)'
                 }}
               >
-                {t('common.welcome')}
-              </Typography>
-            </Box>
-            {/* <LanguageSelector /> */}
-          </Box>
-
-          <Typography 
-            variant={isMobile ? "h6" : "h5"} 
-            sx={{ 
-              maxWidth: 800,
-              mb: { xs: 2, md: 4 },
-              px: 2,
-              fontStyle: 'italic',
-              color: 'white',
-              textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
-            }}
-          >
-            {t('home.subtitle')}
-          </Typography>
-
-          <Grid container spacing={3}>
-            {features.map((feature) => (
-              <Grid item xs={12} sm={6} md={4} key={feature.title}>
-                <Paper
-                  elevation={2}
-                  sx={{
-                    p: 3,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    textAlign: 'center',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: 4,
-                    },
-                    borderRadius: 2,
-                    backgroundColor: 'rgba(255, 255, 255, 0.8)'
+                <Box sx={{ mb: 2 }}>
+                  {feature.icon}
+                </Box>
+                <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                  {feature.title}
+                </Typography>
+                <Typography 
+                  color="text.secondary" 
+                  sx={{ 
+                    mb: 3,
+                    flexGrow: 1
                   }}
                 >
-                  <Box sx={{ mb: 2 }}>
-                    {feature.icon}
-                  </Box>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-                    {feature.title}
-                  </Typography>
-                  <Typography 
-                    color="text.secondary" 
-                    sx={{ 
-                      mb: 3,
-                      flexGrow: 1
-                    }}
-                  >
-                    {feature.description}
-                  </Typography>
-                  <Button
-                    variant={feature.requiresAuth && !user ? "outlined" : "contained"}
-                    onClick={() => feature.requiresAuth && !user ? router.push('/auth/login') : feature.action()}
-                    sx={{ 
-                      width: '100%',
-                      mt: 'auto',
-                      transition: 'background-color 0.3s',
-                      '&:hover': {
-                        backgroundColor: 'primary.dark'
-                      }
-                    }}
-                  >
-                    {feature.requiresAuth && !user ? t('auth.signInButton') : feature.buttonText}
-                  </Button>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      </Container>
-    </>
+                  {feature.description}
+                </Typography>
+                <Button
+                  variant={feature.requiresAuth && !user ? "outlined" : "contained"}
+                  onClick={() => feature.requiresAuth && !user ? router.push('/auth/login') : feature.action()}
+                  sx={{ 
+                    width: '100%',
+                    mt: 'auto',
+                    transition: 'background-color 0.3s',
+                    '&:hover': {
+                      backgroundColor: 'primary.dark'
+                    }
+                  }}
+                >
+                  {feature.requiresAuth && !user ? t('auth.signInButton') : feature.buttonText}
+                </Button>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+    </Container>
   );
 }
