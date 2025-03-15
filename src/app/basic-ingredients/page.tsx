@@ -22,11 +22,13 @@ import {
 import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/utils/supabase-client';
+import { PostgrestError } from '@supabase/supabase-js';
 
 interface BasicIngredient {
   id: string;
   name: string;
   created_at: string;
+  user_id: string;
 }
 
 interface DialogState {
@@ -59,6 +61,7 @@ export default function BasicIngredientsPage() {
       const { data, error } = await supabase
         .from('basic_ingredients')
         .select('*')
+        .eq('user_id', user?.id)
         .order('name');
 
       if (error) throw error;
@@ -72,19 +75,60 @@ export default function BasicIngredientsPage() {
   };
 
   const handleAddIngredient = async () => {
+    if (!user) {
+      setError('You must be logged in to add ingredients');
+      return;
+    }
+    
+    if (!dialogState.name.trim()) {
+      setError('Ingredient name cannot be empty');
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('basic_ingredients')
-        .insert([{ name: dialogState.name }])
+        .insert([{ 
+          name: dialogState.name.trim(),
+          user_id: user.id
+        }])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('No data returned from insert');
+      }
+
       setIngredients([...ingredients, data]);
       setDialogState({ open: false, mode: 'add', name: '' });
-    } catch (error) {
-      console.error('Error adding basic ingredient:', error);
-      setError('Failed to add ingredient');
+      setError(null);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Error adding basic ingredient:', error.message);
+        setError(error.message);
+      } else if ((error as PostgrestError).code) {
+        const pgError = error as PostgrestError;
+        console.error('Supabase error:', {
+          message: pgError.message,
+          details: pgError.details,
+          hint: pgError.hint,
+          code: pgError.code
+        });
+        setError(pgError.message);
+      } else {
+        console.error('Unknown error:', error);
+        setError('Failed to add ingredient');
+      }
     }
   };
 
