@@ -22,7 +22,6 @@ import {
 import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/utils/supabase-client';
-import Navbar from '@/components/Navbar';
 
 interface BasicIngredient {
   id: string;
@@ -133,7 +132,6 @@ export default function BasicIngredientsPage() {
 
   return (
     <>
-      <Navbar />
       <Container maxWidth="md" sx={{ mt: { xs: 2, sm: 2, md: 3 }, mb: { xs: 3, sm: 4, md: 5 } }}>
         <Box sx={{ 
           mb: { xs: 2, sm: 2, md: 3 }, 
