@@ -18,6 +18,7 @@ import RecipeFilterSidebar, { RecipeFilters } from '@/components/RecipeFilterSid
 import { Recipe } from '@/types/recipe';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'next/navigation';
+import { useTheme } from '@mui/material/styles';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -178,6 +179,8 @@ export default function SearchPage() {
     setFilters(newFilters);
   };
 
+  const theme = useTheme();
+
   return (
     <Box 
       component="main"
@@ -252,11 +255,14 @@ export default function SearchPage() {
                   </InputAdornment>
                 ),
                 sx: {
-                  backgroundColor: '#F5F5F5',
+                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#F5F5F5',
                   borderRadius: '12px',
                   '& fieldset': { border: 'none' },
                   '&:hover fieldset': { border: 'none' },
-                  '&.Mui-focused fieldset': { border: 'none' }
+                  '&.Mui-focused fieldset': { border: 'none' },
+                  '& input::placeholder': {
+                    color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'inherit'
+                  }
                 }
               }}
               onKeyDown={(e) => {
