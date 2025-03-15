@@ -27,7 +27,6 @@ export const en = {
     scan: "Scan Ingredients",
     shoppingList: "Shopping List",
     savedRecipes: "Saved Recipes",
-    myRecipes: "My Recipes",
     myMeals: "My Meals",
     profile: "Profile",
     education: "Learn to Cook",
