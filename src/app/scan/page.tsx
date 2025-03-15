@@ -34,7 +34,6 @@ import {
 } from '@/store/slices/ingredientSlice';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/utils/supabase-client';
-import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import RecipeSuggestions from '@/components/RecipeSuggestions';
@@ -348,7 +347,6 @@ const ScanPage = () => {
 
   return (
     <>
-      <Navbar />
       <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           {t('scan.title')}
