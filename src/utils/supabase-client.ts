@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Recipe } from '@/types/ingredient';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -77,9 +76,35 @@ export async function rateRecipe(recipeId: string, rating: number, comment?: str
 }
 
 export async function getRecipeRating(recipeId: string) {
-  const { data, error } = await supabase
-    .rpc('get_recipe_average_rating', { recipe_id: recipeId });
+  try {
+    if (!recipeId) {
+      throw new Error('Recipe ID is required');
+    }
 
-  if (error) throw error;
-  return data;
+    console.log('Fetching rating for recipe:', recipeId);
+    const response = await supabase
+      .rpc('get_recipe_average_rating', { recipe_id: recipeId.toString() });
+
+    console.log('Supabase response:', response);
+
+    if (response.error) {
+      console.error('Supabase error details:', {
+        message: response.error.message,
+        details: response.error.details,
+        hint: response.error.hint,
+        code: response.error.code
+      });
+      throw new Error(`Failed to get recipe rating: ${response.error.message}`);
+    }
+
+    // If no ratings exist, data will be null
+    return response.data || 0;
+  } catch (error) {
+    console.error('Error in getRecipeRating:', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      recipeId
+    });
+    throw error;
+  }
 } 

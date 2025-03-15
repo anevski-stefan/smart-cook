@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -12,12 +12,25 @@ import {
   Grid,
   Snackbar,
   Alert,
+  MenuItem,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/utils/supabase-client';
+
+const categories = [
+  'Weekly Calories',
+  'Number of Meals',
+  'Try New Recipes',
+  'Cook a Balanced Meal',
+  'Try an International Dish',
+  'Reduce Food Waste',
+];
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -28,7 +41,18 @@ export default function ProfilePage() {
     fullName: user?.user_metadata?.full_name || '',
     avatarUrl: user?.user_metadata?.avatar_url || '',
   });
+  const [goal, setGoal] = useState('');
+  const [description, setDescription] = useState('');
+  const [goals, setGoals] = useState<{ category: string; description: string; date: string }[]>([]);
 
+  useEffect(() => {
+    // Load goals from local storage on component mount
+    const savedGoals = localStorage.getItem('weeklyGoals');
+    console.log("Loaded Goals:", savedGoals);
+    if (savedGoals) {
+      setGoals(JSON.parse(savedGoals));
+    }
+  }, []);
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -70,6 +94,27 @@ export default function ProfilePage() {
     setMessage(null);
   };
 
+  const handleAddGoal = () => {
+    if (!goal || !description) {
+      setMessage({
+        type: 'error',
+        text: 'Please fill in all fields before adding a goal.',
+      });
+      return;
+    }
+    const newGoals = [...goals, { category: goal, description, date: new Date().toLocaleDateString() }];
+    setGoals(newGoals);
+    localStorage.setItem('weeklyGoals', JSON.stringify(newGoals));
+    setGoal('');
+    setDescription('');
+  };
+
+  const handleDeleteGoal = (index: number) => {
+    const updatedGoals = goals.filter((_, i) => i !== index);
+    setGoals(updatedGoals);
+    localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
+  };
+
   return (
     <ProtectedRoute>
       <Navbar />
@@ -86,8 +131,24 @@ export default function ProfilePage() {
               </Grid>
 
               <Grid item xs={12}>
-                <Typography variant="h4" component="h1" gutterBottom align="center">
-                  {t('profile.settings')}
+                <Typography
+                  variant="h4"
+                  component="h1"
+                  gutterBottom
+                  align="center"
+                  sx={{
+                    background: 'linear-gradient(90deg, green, orange)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  Hello, {formData.fullName}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Typography variant="h5" component="h2" gutterBottom align="center" color="text.secondary">
+                  Profile Settings
                 </Typography>
               </Grid>
 
@@ -121,17 +182,88 @@ export default function ProfilePage() {
               </Grid>
 
               <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Weekly Goals
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  select
+                  label="Category"
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                >
+                  {categories.map((category) => (
+                    <MenuItem key={category} value={category}>
+                      {category}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  label="Description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  fullWidth
+                  multiline
+                  rows={4}
+                  sx={{ mb: 2 }}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={handleAddGoal}
+                  sx={{ backgroundColor: 'green', '&:hover': { backgroundColor: 'darkgreen' } }}
+                >
+                  Add Goal
+                </Button>
+              </Grid>
+
+              <Grid item xs={12}>
                 <Button
                   type="submit"
                   variant="contained"
                   fullWidth
                   disabled={loading}
+                  sx={{ backgroundColor: 'green', '&:hover': { backgroundColor: 'darkgreen' } }}
                 >
                   {loading ? t('profile.updating') : t('profile.updateProfile')}
                 </Button>
               </Grid>
             </Grid>
           </Box>
+        </Paper>
+
+        <Paper elevation={3} sx={{ p: 2, mt: 4, borderRadius: 2, boxShadow: 4 }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'orange' }}>
+            Your Goals
+          </Typography>
+          <List sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {goals.map((goal, index) => (
+              <ListItem key={index} sx={{ border: '1px solid #ddd', borderRadius: 2, p: 2, boxShadow: 2 }}>
+                <ListItemText
+                  primary={<Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>{`${goal.category} - ${goal.date}`}</Typography>}
+                  secondary={<Typography variant="body2" color="text.secondary">{goal.description}</Typography>}
+                />
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => handleDeleteGoal(index)}
+                  sx={{ borderColor: 'orange', color: 'orange', '&:hover': { borderColor: 'darkorange', color: 'darkorange' } }}
+                >
+                  Delete
+                </Button>
+              </ListItem>
+            ))}
+          </List>
         </Paper>
 
         {message && (

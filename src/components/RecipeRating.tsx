@@ -21,7 +21,8 @@ export default function RecipeRating({ recipeId }: RecipeRatingProps) {
         const avgRating = await getRecipeRating(recipeId);
         setAverageRating(avgRating);
       } catch (error) {
-        console.error('Error fetching recipe rating:', error);
+        console.error('Error fetching recipe rating:', error instanceof Error ? error.message : 'Unknown error');
+        setAverageRating(0);
       } finally {
         setLoading(false);
       }
@@ -36,12 +37,11 @@ export default function RecipeRating({ recipeId }: RecipeRatingProps) {
     setIsSubmitting(true);
     try {
       await rateRecipe(recipeId, rating, comment);
-      // Refresh average rating
       const newAvgRating = await getRecipeRating(recipeId);
       setAverageRating(newAvgRating);
       setComment('');
     } catch (error) {
-      console.error('Error submitting rating:', error);
+      console.error('Error submitting rating:', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsSubmitting(false);
     }
