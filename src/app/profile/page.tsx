@@ -70,7 +70,13 @@ export default function ProfilePage() {
   });
   const [goal, setGoal] = useState('');
   const [description, setDescription] = useState('');
-  const [goals, setGoals] = useState<{ id?: number; category: string; description: string; dates?: Date[] }[]>([]);
+  const [goals, setGoals] = useState<{ 
+    id?: number; 
+    category: string; 
+    description: string; 
+    dates?: Date[];
+    achieved?: boolean;
+  }[]>([]);
   const [open, setOpen] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [currentGoalIndex, setCurrentGoalIndex] = useState<number | null>(null);
@@ -95,10 +101,16 @@ export default function ProfilePage() {
               try {
                 const parsedGoals = JSON.parse(savedGoals);
                 // Convert date strings back to Date objects
-                const formattedGoals = parsedGoals.map((goal: { category: string; description: string; dates?: string[] }) => ({
+                const formattedGoals = parsedGoals.map((goal: { 
+                  category: string; 
+                  description: string; 
+                  dates?: string[];
+                  achieved?: boolean;
+                }) => ({
                   category: goal.category,
                   description: goal.description,
                   dates: goal.dates ? goal.dates.map((date: string) => new Date(date)) : undefined,
+                  achieved: goal.achieved || false,
                 }));
                 setGoals(formattedGoals);
               } catch (parseError) {
@@ -117,6 +129,7 @@ export default function ProfilePage() {
             category: goal.category,
             description: goal.description,
             dates: goal.dates ? goal.dates.map((date: string) => new Date(date)) : undefined,
+            achieved: goal.achieved || false,
           }));
           setGoals(formattedGoals);
         }
@@ -128,10 +141,16 @@ export default function ProfilePage() {
           try {
             const parsedGoals = JSON.parse(savedGoals);
             // Convert date strings back to Date objects
-            const formattedGoals = parsedGoals.map((goal: { category: string; description: string; dates?: string[] }) => ({
+            const formattedGoals = parsedGoals.map((goal: { 
+              category: string; 
+              description: string; 
+              dates?: string[];
+              achieved?: boolean;
+            }) => ({
               category: goal.category,
               description: goal.description,
               dates: goal.dates ? goal.dates.map((date: string) => new Date(date)) : undefined,
+              achieved: goal.achieved || false,
             }));
             setGoals(formattedGoals);
           } catch (parseError) {
@@ -194,24 +213,30 @@ export default function ProfilePage() {
       return;
     }
     
+    // Create the new goal object
     const newGoal = { 
       category: goal, 
       description,
-      dates: undefined
+      dates: undefined,
+      achieved: false
     };
     
     try {
       // Try to save to Supabase first
       if (user) {
+        // Prepare the data for Supabase
+        const goalData = {
+          category: goal,
+          description,
+          user_id: user.id,
+          week_start_date: new Date(),
+          achieved: false
+        };
+        
         // Try to insert the goal
         const { data, error } = await supabase
           .from('weeklygoals')
-          .insert([{
-            category: goal,
-            description,
-            user_id: user.id,
-            week_start_date: new Date()
-          }])
+          .insert([goalData])
           .select();
           
         if (error) {
@@ -234,6 +259,7 @@ export default function ProfilePage() {
               category: data[0].category,
               description: data[0].description,
               dates: data[0].dates ? data[0].dates.map((date: string) => new Date(date)) : undefined,
+              achieved: data[0].achieved || false,
             };
             
             setGoals(prevGoals => [...prevGoals, newGoalWithId]);
@@ -525,6 +551,66 @@ export default function ProfilePage() {
     }
   };
 
+  const handleMarkAchieved = (index: number) => {
+    // Check if the goal has future dates
+    const goal = goals[index];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for fair comparison
+    
+    // If the goal has dates, check if any are in the future
+    if (goal.dates && goal.dates.length > 0) {
+      const hasFutureDates = goal.dates.some(date => {
+        const goalDate = new Date(date);
+        goalDate.setHours(0, 0, 0, 0); // Reset time to start of day
+        return goalDate > today;
+      });
+      
+      if (hasFutureDates) {
+        setMessage({
+          type: 'warning',
+          text: 'This goal cannot be marked as achieved because it contains future dates.',
+        });
+        return;
+      }
+    }
+    
+    // Mark the goal as achieved
+    const updatedGoals = [...goals];
+    updatedGoals[index] = {
+      ...updatedGoals[index],
+      achieved: !updatedGoals[index].achieved // Toggle the achieved status
+    };
+    setGoals(updatedGoals);
+    
+    // Save to Supabase if available
+    if (user && goal.id) {
+      (async () => {
+        try {
+          const { error } = await supabase
+            .from('weeklygoals')
+            .update({ achieved: !goal.achieved })
+            .eq('id', goal.id);
+            
+          if (error) {
+            console.error('Error updating goal achievement status:', error);
+          }
+        } catch (updateError: unknown) {
+          console.error('Error in updating achievement status:', updateError);
+        }
+      })();
+    }
+    
+    // Always save to localStorage as a backup
+    localStorage.setItem('weeklyGoals', serializeForStorage(updatedGoals));
+    
+    setMessage({
+      type: 'success',
+      text: updatedGoals[index].achieved 
+        ? 'Goal marked as achieved! Congratulations!' 
+        : 'Goal marked as not achieved.',
+    });
+  };
+
   return (
     <ProtectedRoute>
       <Navbar />
@@ -640,9 +726,28 @@ export default function ProfilePage() {
           </Typography>
           <List>
             {goals.map((goal, index) => (
-              <ListItem key={index} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <ListItem 
+                key={index} 
+                sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  backgroundColor: goal.achieved ? 'rgba(76, 175, 80, 0.1)' : 'inherit',
+                  borderLeft: goal.achieved ? '4px solid #4caf50' : 'none',
+                }}
+              >
                 <ListItemText
-                  primary={goal.category}
+                  primary={
+                    <Typography 
+                      component="div" 
+                      variant="subtitle1"
+                      sx={{
+                        textDecoration: goal.achieved ? 'line-through' : 'none',
+                        color: goal.achieved ? 'text.secondary' : 'text.primary',
+                      }}
+                    >
+                      {goal.category}
+                    </Typography>
+                  }
                   secondary={
                     <Typography component="div" variant="body2" color="text.secondary">
                       {goal.description}
@@ -653,7 +758,11 @@ export default function ProfilePage() {
                               key={i} 
                               label={date.toLocaleDateString()} 
                               size="small" 
-                              sx={{ mr: 0.5, mb: 0.5 }}
+                              sx={{ 
+                                mr: 0.5, 
+                                mb: 0.5,
+                                backgroundColor: new Date(date) < new Date() ? 'rgba(76, 175, 80, 0.1)' : 'inherit',
+                              }}
                             />
                           ))}
                         </Box>
@@ -661,8 +770,23 @@ export default function ProfilePage() {
                     </Typography>
                   }
                 />
-                <div>
-                  <Button onClick={() => handleOpenCalendar(index)}>Select Days</Button>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Button 
+                    onClick={() => handleMarkAchieved(index)}
+                    color={goal.achieved ? "success" : "primary"}
+                    variant={goal.achieved ? "contained" : "outlined"}
+                    size="small"
+                    sx={{ mr: 1 }}
+                  >
+                    {goal.achieved ? "Achieved" : "Mark Achieved"}
+                  </Button>
+                  <Button 
+                    onClick={() => handleOpenCalendar(index)}
+                    size="small"
+                    sx={{ mr: 1 }}
+                  >
+                    Select Days
+                  </Button>
                   <IconButton
                     edge="end"
                     aria-label="delete"
@@ -676,7 +800,7 @@ export default function ProfilePage() {
                   >
                     <DeleteIcon />
                   </IconButton>
-                </div>
+                </Box>
               </ListItem>
             ))}
           </List>
