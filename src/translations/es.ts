@@ -16,6 +16,8 @@ export const es = {
     forgotPassword: "¿Olvidaste tu contraseña?",
     noAccount: "¿No tienes una cuenta?",
     noResults: "No se encontraron resultados",
+    typeMessage: "Escribe tu mensaje...",
+    send: "Enviar",
   },
   navigation: {
     home: "Inicio",
@@ -25,8 +27,10 @@ export const es = {
     scan: "Escanear",
     shoppingList: "Lista de Compras",
     savedRecipes: "Recetas Guardadas",
+    myRecipes: "Mis Recetas",
     profile: "Perfil",
-    education: "Educación"
+    education: "Educación",
+    chat: "Asistente de Chat"
   },
   recipe: {
     ingredients: "Ingredientes",
@@ -39,6 +43,8 @@ export const es = {
     noMoreRecipes: "No hay más recetas para cargar",
     noRecipesFound: "No se encontraron recetas. Prueba con otros filtros.",
     findRecipes: "Buscar Recetas",
+    create: "Crear Receta",
+    createPrompt: "Comienza creando tu primera receta",
   },
   cooking: {
     start: "Empezar a Cocinar",

@@ -1,311 +1,147 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import {
-  Container,
-  Typography,
-  Grid,
-  Paper,
-  Box,
-  CircularProgress,
-  Chip,
-  Snackbar,
-  Alert,
-  useTheme,
-  useMediaQuery,
-  Button,
-} from '@mui/material';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import GroupIcon from '@mui/icons-material/Group';
-import RestaurantIcon from '@mui/icons-material/Restaurant';
-import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
-import { useParams } from 'next/navigation';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '@/store/store';
-import { setCurrentRecipe, setLoading, setError } from '@/store/slices/recipeSlice';
-import Navbar from '@/components/Navbar';
-import SaveRecipeButton from '@/components/SaveRecipeButton';
-import RecipeRating from '@/components/RecipeRating';
-import AddToShoppingList from '@/components/AddToShoppingList';
-import NutritionalInfo from '@/components/NutritionalInfo';
-import RecipeIngredients from '@/components/RecipeIngredients';
-import CookingAssistant from '@/components/CookingAssistant';
-import CameraAssistant from '@/components/CameraAssistant';
-import { useAuth } from '@/contexts/AuthContext';
+import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
+import type { Recipe, RecipeIngredient, Instruction } from '@/types/recipe';
+import { createClient } from '@/utils/supabase/server';
 
-export default function RecipePage() {
-  const { id } = useParams();
-  const dispatch = useDispatch();
-  const { user } = useAuth();
-  const { currentRecipe, loading, error } = useSelector(
-    (state: RootState) => state.recipes
-  );
-  const [notification, setNotification] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState<{
-    id: number;
-    text: string;
-    description?: string;
-  } | undefined>();
-  
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+interface RecipeWithUser extends Recipe {
+  users: {
+    email: string;
+  };
+}
 
-  useEffect(() => {
-    const fetchRecipe = async () => {
-      dispatch(setLoading(true));
-      try {
-        const response = await fetch(`/api/recipes/${id}`);
-        const data = await response.json();
+export default async function RecipePage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const supabase = createClient();
 
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to fetch recipe');
-        }
+  // Fetch recipe
+  const { data: recipe, error } = await supabase
+    .from('recipes')
+    .select('*, users(email)')
+    .eq('id', params.id)
+    .single<RecipeWithUser>();
 
-        dispatch(setCurrentRecipe(data));
-      } catch (error) {
-        console.error('Error fetching recipe:', error);
-        dispatch(setError('Failed to load recipe'));
-      } finally {
-        dispatch(setLoading(false));
-      }
-    };
+  if (error || !recipe) {
+    notFound();
+  }
 
-    if (id) {
-      fetchRecipe();
-    }
-  }, [id, dispatch]);
-
-  const renderLoginPrompt = () => (
-    <Paper sx={{ p: 3, textAlign: 'center' }}>
-      <Typography variant="h6" gutterBottom>
-        Sign in to Access Cooking Assistant
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-        Please sign in to use the cooking assistant and camera features.
-      </Typography>
-      <Button
-        variant="contained"
-        color="primary"
-        component={Link}
-        href={`/auth/login?redirect=/recipes/${id}`}
-      >
-        Sign In
-      </Button>
-    </Paper>
-  );
+  // Check if current user is the owner
+  const { data: { session } } = await supabase.auth.getSession();
+  const isOwner = session?.user.id === recipe.userId;
 
   return (
-    <>
-      <Navbar />
-      <Container 
-        maxWidth="xl" 
-        sx={{ 
-          mt: 4,
-          px: { xs: 1, sm: 2, md: 3 }
-        }}
-      >
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : error ? (
-          <Alert severity="error" sx={{ mt: 4 }}>
-            {error}
-          </Alert>
-        ) : currentRecipe ? (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Paper sx={{ p: { xs: 2, sm: 3 } }}>
-                <Box 
-                  sx={{ 
-                    display: 'flex', 
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    justifyContent: 'space-between', 
-                    alignItems: { xs: 'flex-start', sm: 'center' },
-                    gap: { xs: 2, sm: 3 },
-                    mb: 3
-                  }}
-                >
-                  <Box sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: { xs: 1, sm: 2 },
-                    width: '100%',
-                    flexWrap: { xs: 'wrap', sm: 'nowrap' }
-                  }}>
-                    <Typography 
-                      variant="h4" 
-                      component="h1"
-                      sx={{
-                        fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
-                        lineHeight: 1.2,
-                        flex: 1,
-                        minWidth: 0 // Allows text to wrap properly
-                      }}
-                    >
-                      {currentRecipe.title}
-                    </Typography>
-                    {user && (
-                      <Box 
-                        sx={{ 
-                          display: 'flex',
-                          gap: { xs: 1, sm: 2 },
-                          ml: 'auto'
-                        }}
-                      >
-                        <SaveRecipeButton recipeId={currentRecipe.id} />
-                        <AddToShoppingList ingredients={currentRecipe.ingredients} />
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-3xl font-bold">{recipe.title}</h1>
+        {isOwner && (
+          <div className="flex gap-4">
+            <Link
+              href={`/recipes/${recipe.id}/edit`}
+              className="rounded-md bg-blue-100 px-4 py-2 text-blue-700 hover:bg-blue-200"
+            >
+              Edit Recipe
+            </Link>
+            <Link
+              href="/recipes"
+              className="rounded-md bg-gray-100 px-4 py-2 text-gray-700 hover:bg-gray-200"
+            >
+              Back to Recipes
+            </Link>
+          </div>
+        )}
+      </div>
 
-                <Typography 
-                  variant="body1" 
-                  paragraph 
-                  sx={{ mb: 2 }}
-                >
-                  {currentRecipe.description.split('Tags:')[0].trim()}
-                </Typography>
+      <div className="grid gap-8 md:grid-cols-2">
+        <div>
+          <div className="relative mb-6 h-96 w-full overflow-hidden rounded-lg">
+            {recipe.image ? (
+              <Image
+                src={recipe.image}
+                alt={recipe.title}
+                fill
+                className="object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                <span className="text-gray-400">No image</span>
+              </div>
+            )}
+          </div>
 
-                {currentRecipe.description.includes('Tags:') && (
-                  <Box 
-                    sx={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 1,
-                      mb: 3
-                    }}
+          <div className="mb-6">
+            <h2 className="mb-2 text-xl font-semibold">About this Recipe</h2>
+            <p className="text-gray-600">{recipe.description || 'No description provided'}</p>
+          </div>
+
+          <div className="mb-6 grid grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Cooking Time</h3>
+              <p>{recipe.cookingTime} minutes</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Servings</h3>
+              <p>{recipe.servings} servings</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Difficulty</h3>
+              <p className="capitalize">{recipe.difficulty}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Cuisine</h3>
+              <p>{recipe.cuisine_type || 'Not specified'}</p>
+            </div>
+          </div>
+
+          {recipe.dietary_restrictions && recipe.dietary_restrictions.length > 0 && (
+            <div className="mb-6">
+              <h3 className="mb-2 text-sm font-medium text-gray-500">Dietary Information</h3>
+              <div className="flex flex-wrap gap-2">
+                {recipe.dietary_restrictions.map((restriction: string) => (
+                  <span
+                    key={restriction}
+                    className="rounded-full bg-green-100 px-3 py-1 text-sm text-green-800"
                   >
-                    {currentRecipe.description
-                      .split('Tags:')[1]
-                      .split(',')
-                      .map((tag) => (
-                        <Chip
-                          key={tag}
-                          label={tag.trim()}
-                          color="primary"
-                          variant="outlined"
-                          size={isMobile ? "small" : "medium"}
-                        />
-                      ))}
-                  </Box>
-                )}
+                    {restriction}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Box
-                      component="img"
-                      src={currentRecipe.image}
-                      alt={currentRecipe.title}
-                      sx={{
-                        width: '100%',
-                        height: 'auto',
-                        borderRadius: 2,
-                        mb: { xs: 2, sm: 0 }
-                      }}
-                    />
-                  </Grid>
+        <div>
+          <div className="mb-8">
+            <h2 className="mb-4 text-xl font-semibold">Ingredients</h2>
+            <ul className="space-y-2">
+              {recipe.ingredients.map((ingredient: RecipeIngredient, index: number) => (
+                <li key={index} className="flex items-center gap-2">
+                  <span className="font-medium">{ingredient.amount} {ingredient.unit}</span>
+                  <span>{ingredient.name}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-                  <Grid item xs={12} md={6}>
-                    <Box 
-                      sx={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: { xs: 1, sm: 2 },
-                        mb: 3,
-                        '& .MuiChip-root': {
-                          minWidth: { xs: 'calc(50% - 4px)', sm: 'auto' }
-                        }
-                      }}
-                    >
-                      <Chip
-                        icon={<AccessTimeIcon />}
-                        label={`${currentRecipe.readyInMinutes} minutes`}
-                        sx={{ flex: { xs: '1 0 auto', sm: '0 1 auto' } }}
-                      />
-                      <Chip
-                        icon={<GroupIcon />}
-                        label={`${currentRecipe.servings} servings`}
-                        sx={{ flex: { xs: '1 0 auto', sm: '0 1 auto' } }}
-                      />
-                      <Chip
-                        icon={<RestaurantIcon />}
-                        label={currentRecipe.cuisine}
-                        sx={{ flex: { xs: '1 0 auto', sm: '0 1 auto' } }}
-                      />
-                      <Chip
-                        icon={<SignalCellularAltIcon />}
-                        label={currentRecipe.difficulty}
-                        sx={{ flex: { xs: '1 0 auto', sm: '0 1 auto' } }}
-                      />
-                    </Box>
+          <div>
+            <h2 className="mb-4 text-xl font-semibold">Instructions</h2>
+            <ol className="space-y-4">
+              {recipe.instructions.map((instruction: Instruction, index: number) => (
+                <li key={index} className="flex gap-4">
+                  <span className="font-medium text-gray-400">{index + 1}.</span>
+                  <span>{instruction.text}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </div>
 
-                    <Box mb={3}>
-                      <NutritionalInfo nutritionalInfo={currentRecipe.nutritionalInfo} />
-                    </Box>
-
-                    <RecipeRating recipeId={currentRecipe.id} />
-                  </Grid>
-
-                  <Grid item xs={12} md={4} order={{ xs: 2, md: 1 }}>
-                    <Box sx={{ position: 'sticky', top: 24 }}>
-                      <RecipeIngredients ingredients={currentRecipe.ingredients} />
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} md={8} order={{ xs: 1, md: 2 }}>
-                    {user ? (
-                      <CookingAssistant 
-                        instructions={currentRecipe.instructions}
-                        ingredients={currentRecipe.ingredients}
-                        totalRecipeTime={currentRecipe.readyInMinutes}
-                        onComplete={() => {
-                          setNotification('Congratulations! You have completed the recipe!');
-                        }}
-                        onStepChange={(step) => {
-                          setCurrentStep(step);
-                        }}
-                      />
-                    ) : renderLoginPrompt()}
-                  </Grid>
-
-                  <Grid item xs={12} order={3}>
-                    {user ? (
-                      <CameraAssistant 
-                        currentStep={currentStep}
-                        ingredients={currentRecipe.ingredients.map(ingredient => ({
-                          ...ingredient,
-                          amount: ingredient.amount.toString()
-                        }))}
-                      />
-                    ) : null}
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Grid>
-          </Grid>
-        ) : null}
-
-        <Snackbar
-          open={!!notification}
-          autoHideDuration={6000}
-          onClose={() => setNotification(null)}
-          anchorOrigin={{ 
-            vertical: 'bottom', 
-            horizontal: 'center' 
-          }}
-        >
-          <Alert 
-            onClose={() => setNotification(null)} 
-            severity="success"
-            sx={{ width: '100%' }}
-          >
-            {notification}
-          </Alert>
-        </Snackbar>
-      </Container>
-    </>
+      <div className="mt-8 border-t pt-4 text-sm text-gray-500">
+        <p>Created by {recipe.users.email}</p>
+      </div>
+    </div>
   );
 } 

@@ -22,6 +22,7 @@ export async function POST(request: Request) {
       const imageFile = formData.get('image') as File;
       
       if (!imageFile) {
+        console.error('No image file provided in form data');
         return NextResponse.json(
           { error: 'No image provided' },
           { status: 400 }
@@ -30,13 +31,24 @@ export async function POST(request: Request) {
 
       // Validate image data
       if (!imageFile.type.startsWith('image/')) {
+        console.error('Invalid file type:', imageFile.type);
         return NextResponse.json(
           { error: 'Invalid image format' },
           { status: 400 }
         );
       }
 
-      base64Image = await convertFileToBase64(imageFile);
+      console.log('Converting image to base64...');
+      try {
+        base64Image = await convertFileToBase64(imageFile);
+        console.log('Successfully converted image to base64');
+      } catch (error) {
+        console.error('Error converting image to base64:', error);
+        return NextResponse.json(
+          { error: 'Failed to process image data' },
+          { status: 500 }
+        );
+      }
     } else {
       // Handle JSON request
       const { image } = await request.json();
@@ -162,17 +174,7 @@ function formatIngredients(ingredients: string[]): string {
 }
 
 async function convertFileToBase64(file: File): Promise<string> {
-  const reader = new FileReader();
-  const base64ArrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-    reader.onload = (event) => {
-      const arrayBuffer = event.target?.result as ArrayBuffer;
-      resolve(arrayBuffer);
-    };
-    reader.onerror = (event) => {
-      reject(new Error('Error reading file'));
-    };
-    reader.readAsDataURL(file);
-  });
-  const base64 = Buffer.from(base64ArrayBuffer).toString('base64');
-  return base64;
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+  return buffer.toString('base64');
 } 

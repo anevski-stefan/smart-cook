@@ -23,25 +23,26 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSelector } from './LanguageSelector';
 
-type NavigationPage = 'search' | 'scan' | 'education';
-type SettingsKey = 'profile' | 'saved-recipes' | 'shopping-list' | 'ingredients' | 'sign-out';
-type SettingsLabel = 'navigation.profile' | 'navigation.savedRecipes' | 'navigation.shoppingList' | 'recipe.ingredients' | 'common.signOut';
+type NavigationPage = 'search' | 'scan' | 'education' | 'chat';
+type SettingsKey = 'profile' | 'saved-recipes' | 'shopping-list' | 'ingredients' | 'my-recipes' | 'sign-out';
+type SettingsLabel = 'navigation.profile' | 'navigation.savedRecipes' | 'navigation.shoppingList' | 'recipe.ingredients' | 'navigation.myRecipes' | 'common.signOut';
 
 interface SettingsItem {
   key: SettingsKey;
   label: SettingsLabel;
 }
 
-const pages: NavigationPage[] = ['search', 'scan', 'education'];
+const pages: NavigationPage[] = ['search', 'scan', 'education', 'chat'];
 const settings: SettingsItem[] = [
   { key: 'profile', label: 'navigation.profile' },
+  { key: 'my-recipes', label: 'navigation.myRecipes' },
   { key: 'saved-recipes', label: 'navigation.savedRecipes' },
   { key: 'shopping-list', label: 'navigation.shoppingList' },
   { key: 'ingredients', label: 'recipe.ingredients' },
   { key: 'sign-out', label: 'common.signOut' }
 ];
 
-const getTranslationKey = (page: NavigationPage): 'common.search' | 'navigation.scan' | 'navigation.education' => {
+const getTranslationKey = (page: NavigationPage): 'common.search' | 'navigation.scan' | 'navigation.education' | 'navigation.chat' => {
   switch (page) {
     case 'search':
       return 'common.search';
@@ -49,6 +50,8 @@ const getTranslationKey = (page: NavigationPage): 'common.search' | 'navigation.
       return 'navigation.scan';
     case 'education':
       return 'navigation.education';
+    case 'chat':
+      return 'navigation.chat';
   }
 };
 
@@ -75,8 +78,22 @@ export default function Navbar() {
   };
 
   const handleNavigation = (path: string) => {
-    router.push(path);
-    handleCloseNavMenu();
+    if (path === '/sign-out') {
+      signOut();
+    } else if (path === '/profile') {
+      router.push('/account/profile');
+    } else if (path === '/saved-recipes') {
+      router.push('/account/saved-recipes');
+    } else if (path === '/shopping-list') {
+      router.push('/account/shopping-list');
+    } else if (path === '/ingredients') {
+      router.push('/account/ingredients');
+    } else if (path === '/my-recipes') {
+      router.push('/account/my-recipes');
+    } else {
+      router.push(path);
+    }
+    handleCloseUserMenu();
   };
 
   const handleSignOut = async () => {
