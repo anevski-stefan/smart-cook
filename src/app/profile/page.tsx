@@ -30,13 +30,13 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { DatePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { gapi } from 'gapi-script';
 
 // Environment variables
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+
+// Create a single Supabase client instance to be reused
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const categories = [
   'Weekly Calories',
@@ -51,7 +51,7 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [formData, setFormData] = useState({
     fullName: user?.user_metadata?.full_name || '',
     avatarUrl: user?.user_metadata?.avatar_url || '',
@@ -69,7 +69,6 @@ export default function ProfilePage() {
       if (!user) return;
       
       try {
-        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
         const { data, error } = await supabase
           .from('weeklygoals')
           .select('*')
@@ -137,9 +136,6 @@ export default function ProfilePage() {
     e.preventDefault();
     setLoading(true);
 
-    // Initialize Supabase client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
     try {
       const { error } = await supabase.auth.updateUser({
         data: {
@@ -187,7 +183,6 @@ export default function ProfilePage() {
     try {
       // Try to save to Supabase first
       if (user) {
-        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
         const { data, error } = await supabase
           .from('weeklygoals')
           .insert([{
@@ -275,7 +270,6 @@ export default function ProfilePage() {
       if (user && goals[index].id) {
         const goalId = goals[index].id;
         
-        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
         const { error } = await supabase
           .from('weeklygoals')
           .delete()
@@ -321,54 +315,132 @@ export default function ProfilePage() {
     setSelectedDate(date);
   };
 
+  // Simplified Google Calendar integration using a popup approach
   const handleSaveToGoogleCalendar = () => {
-    gapi.load('client:auth2', () => {
-      gapi.client.init({
-        apiKey: GOOGLE_API_KEY,
-        clientId: GOOGLE_CLIENT_ID,
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-        scope: 'https://www.googleapis.com/auth/calendar.events',
-      }).then(() => {
-        gapi.auth2.getAuthInstance().signIn().then(() => {
-          const calendar = gapi.client.calendar;
-          if (selectedDate && goals[currentGoalIndex as number]) {
-            calendar.events.insert({
-              calendarId: 'primary',
-              resource: {
-                summary: goals[currentGoalIndex as number].category,
-                description: goals[currentGoalIndex as number].description,
-                start: {
-                  dateTime: selectedDate.toISOString(),
-                  timeZone: 'Europe/Skopje',
-                },
-                end: {
-                  dateTime: new Date(selectedDate.getTime() + 60 * 60 * 1000).toISOString(),
-                  timeZone: 'Europe/Skopje',
-                },
-              },
-            }).then(() => {
-              console.log('Event created');
-              setMessage({
-                type: 'success',
-                text: 'Event saved to Google Calendar!',
-              });
-            }).catch((error: unknown) => {
-              console.error('Error creating event:', error);
-              setMessage({
-                type: 'error',
-                text: 'Failed to save event to Google Calendar.',
-              });
-            });
-          }
-        });
+    if (!selectedDate || currentGoalIndex === null) {
+      setMessage({
+        type: 'error',
+        text: 'Please select a date first.',
       });
+      return;
+    }
+
+    // First save the date to our website (Supabase or localStorage)
+    const updatedGoals = [...goals];
+    updatedGoals[currentGoalIndex].date = selectedDate;
+    setGoals(updatedGoals);
+    
+    // Save to Supabase or localStorage
+    try {
+      const goalId = goals[currentGoalIndex].id;
+      if (user && goalId) {
+        // Save to Supabase
+        supabase
+          .from('weeklygoals')
+          .update({ date: selectedDate.toISOString() })
+          .eq('id', goalId)
+          .then(({ error }) => {
+            if (error && error.code !== '42P01') {
+              console.error('Error updating date in Supabase:', error);
+            }
+          });
+      } 
+      
+      // Always save to localStorage as a backup
+      localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
+      
+    } catch (error) {
+      console.error('Error saving date locally:', error);
+      // Still save to localStorage as fallback
+      localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
+    }
+
+    // Create a manual calendar URL
+    const goal = goals[currentGoalIndex];
+    const startTime = selectedDate.toISOString().replace(/[-:]/g, '').replace(/\.\d+/g, '');
+    const endTime = new Date(selectedDate.getTime() + 60 * 60 * 1000)
+      .toISOString()
+      .replace(/[-:]/g, '')
+      .replace(/\.\d+/g, '');
+    
+    const text = encodeURIComponent(goal.category);
+    const details = encodeURIComponent(goal.description);
+    
+    // Create Google Calendar event URL
+    const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&details=${details}&dates=${startTime}/${endTime}`;
+    
+    // Open in a new window
+    window.open(calendarUrl, '_blank');
+    
+    setMessage({
+      type: 'success',
+      text: 'Date saved and Google Calendar opened in a new tab!',
     });
+    
     handleClose();
   };
 
   const handleOpenCalendar = (index: number) => {
     setCurrentGoalIndex(index);
     setOpen(true);
+  };
+
+  const handleSaveDate = () => {
+    if (selectedDate && currentGoalIndex !== null) {
+      const updatedGoals = [...goals];
+      updatedGoals[currentGoalIndex].date = selectedDate;
+      setGoals(updatedGoals);
+      
+      try {
+        // Try to save to Supabase first
+        const goalId = goals[currentGoalIndex].id;
+        if (user && goalId) {
+          supabase
+            .from('weeklygoals')
+            .update({ date: selectedDate.toISOString() })
+            .eq('id', goalId)
+            .then(({ error }) => {
+              if (error) {
+                if (error.code === '42P01') {
+                  // Table doesn't exist, save to localStorage
+                  localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
+                  setMessage({
+                    type: 'success',
+                    text: 'Date saved locally!',
+                  });
+                } else {
+                  console.error('Error updating date:', error);
+                  setMessage({
+                    type: 'error',
+                    text: 'Failed to save date.',
+                  });
+                }
+              } else {
+                setMessage({
+                  type: 'success',
+                  text: 'Date saved!',
+                });
+              }
+            });
+        } else {
+          // No user or no goal ID, save to localStorage
+          localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
+          setMessage({
+            type: 'success',
+            text: 'Date saved locally!',
+          });
+        }
+      } catch (error) {
+        console.error('Error saving date:', error);
+        // Fallback to localStorage
+        localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
+        setMessage({
+          type: 'success',
+          text: 'Date saved locally!',
+        });
+      }
+    }
+    handleClose();
   };
 
   return (
@@ -526,64 +598,7 @@ export default function ProfilePage() {
           </DialogContent>
           <DialogActions>
             <Button onClick={handleClose}>Cancel</Button>
-            <Button onClick={() => {
-              if (selectedDate && currentGoalIndex !== null) {
-                const updatedGoals = [...goals];
-                updatedGoals[currentGoalIndex].date = selectedDate;
-                setGoals(updatedGoals);
-                
-                try {
-                  // Try to save to Supabase first
-                  const goalId = goals[currentGoalIndex].id;
-                  if (user && goalId) {
-                    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-                    supabase
-                      .from('weeklygoals')
-                      .update({ date: selectedDate.toISOString() })
-                      .eq('id', goalId)
-                      .then(({ error }) => {
-                        if (error) {
-                          if (error.code === '42P01') {
-                            // Table doesn't exist, save to localStorage
-                            localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
-                            setMessage({
-                              type: 'success',
-                              text: 'Date saved locally!',
-                            });
-                          } else {
-                            console.error('Error updating date:', error);
-                            setMessage({
-                              type: 'error',
-                              text: 'Failed to save date.',
-                            });
-                          }
-                        } else {
-                          setMessage({
-                            type: 'success',
-                            text: 'Date saved!',
-                          });
-                        }
-                      });
-                  } else {
-                    // No user or no goal ID, save to localStorage
-                    localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
-                    setMessage({
-                      type: 'success',
-                      text: 'Date saved locally!',
-                    });
-                  }
-                } catch (error) {
-                  console.error('Error saving date:', error);
-                  // Fallback to localStorage
-                  localStorage.setItem('weeklyGoals', JSON.stringify(updatedGoals));
-                  setMessage({
-                    type: 'success',
-                    text: 'Date saved locally!',
-                  });
-                }
-              }
-              handleClose();
-            }}>Save Date</Button>
+            <Button onClick={handleSaveDate}>Save Date</Button>
             <Button onClick={handleSaveToGoogleCalendar}>Save to Google Calendar</Button>
           </DialogActions>
         </Dialog>
