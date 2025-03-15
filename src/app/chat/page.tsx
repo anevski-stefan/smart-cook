@@ -48,6 +48,7 @@ interface Message {
   sender: 'user' | 'assistant';
   timestamp: Date;
   image?: string;
+  chat_id?: string;
 }
 
 interface Chat {
@@ -234,7 +235,43 @@ export default function ChatPage() {
   };
 
   const createNewChat = async () => {
+    // If we already have a current chat with no messages, don't create a new one
+    if (currentChat && messages.length === 0) {
+      return;
+    }
+
     try {
+      // Check if the current chat has any messages
+      if (currentChat) {
+        const { data: currentMessages } = await supabase
+          .from('chat_messages')
+          .select('id')
+          .eq('chat_id', currentChat.id)
+          .limit(1);
+
+        // If current chat has no messages, just keep using it
+        if (!currentMessages || currentMessages.length === 0) {
+          return;
+        }
+      }
+
+      // Check for any existing empty chats
+      for (const chat of chats) {
+        const { data: chatMessages } = await supabase
+          .from('chat_messages')
+          .select('id')
+          .eq('chat_id', chat.id)
+          .limit(1);
+
+        // If we find an empty chat, use it instead of creating a new one
+        if (!chatMessages || chatMessages.length === 0) {
+          setCurrentChat(chat);
+          setMessages([]);
+          return;
+        }
+      }
+
+      // If no empty chats found, create a new one
       console.log('Creating new chat from button click...');
       const { data: chat, error } = await supabase
         .from('chats')
@@ -648,11 +685,11 @@ export default function ChatPage() {
             display: 'flex',
             flexDirection: 'column',
             position: isMobile ? 'fixed' : 'relative',
-            top: isMobile ? '56px' : 0,
+            top: 0,
             left: 0,
             bottom: 0,
-            zIndex: 1200,
-            height: isMobile ? 'calc(100vh - 56px)' : '100%',
+            zIndex: 1100,
+            height: '100%',
             overflowY: 'auto',
           }}
         >
@@ -670,24 +707,46 @@ export default function ChatPage() {
                 alpha(theme.palette.background.paper, 0.95) : 
                 alpha(theme.palette.background.paper, 0.95),
               backdropFilter: 'blur(8px)',
-              zIndex: 10,
-              minHeight: isMobile ? 56 : 64,
+              zIndex: 1200,
+              minHeight: 64,
               boxShadow: `0 1px 2px ${alpha(theme.palette.divider, 0.1)}`,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-              <IconButton
-                onClick={() => {
-                  router.push('/');
-                }}
-                sx={{ mr: 2 }}
-              >
-                <ArrowBackIcon />
-              </IconButton>
-              
-              <Typography variant="h6" sx={{ flex: 1, whiteSpace: 'nowrap' }}>
-                Chat
-              </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <IconButton
+                  onClick={() => {
+                    router.push('/');
+                  }}
+                  sx={{ mr: 2 }}
+                >
+                  <ArrowBackIcon />
+                </IconButton>
+                
+                <Typography variant="h6" sx={{ whiteSpace: 'nowrap' }}>
+                  Chat
+                </Typography>
+              </Box>
+
+              {!isMobile && (
+                <Button
+                  variant="contained"
+                  onClick={createNewChat}
+                  startIcon={<AddIcon />}
+                  sx={{ 
+                    textTransform: 'none',
+                    px: 2,
+                    py: 1,
+                    bgcolor: theme.palette.primary.main,
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: theme.palette.primary.dark,
+                    },
+                  }}
+                >
+                  New Chat
+                </Button>
+              )}
             </Box>
           </Box>
           
@@ -697,7 +756,7 @@ export default function ChatPage() {
               p: 2, 
               borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
               position: 'sticky',
-              top: isMobile ? 56 : 64,
+              top: 64,
               bgcolor: theme.palette.mode === 'light' ? 
                 alpha(theme.palette.background.paper, 0.95) : 
                 alpha(theme.palette.background.paper, 0.95),
@@ -727,6 +786,30 @@ export default function ChatPage() {
               }}
             />
           </Box>
+
+          {/* New Chat Button */}
+          {!isMobile && (
+            <Box sx={{ p: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={createNewChat}
+                startIcon={<AddIcon />}
+                sx={{ 
+                  py: 1,
+                  bgcolor: theme.palette.primary.main,
+                  color: 'white',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': {
+                    bgcolor: theme.palette.primary.dark,
+                  },
+                }}
+              >
+                New Chat
+              </Button>
+            </Box>
+          )}
           
           {/* Chat List */}
           <Box
@@ -1239,6 +1322,83 @@ export default function ChatPage() {
                       </IconButton>
                     </Tooltip>
                   )}
+                  {message.sender === 'assistant' && (() => {
+                    // Check for required meal content before showing the button
+                    const mealMatch = message.text.match(/Meal:\s*([^\n]+)/);
+                    const typeMatch = message.text.toLowerCase().match(/(breakfast|lunch|dinner|snack)/);
+                    const caloriesMatch = message.text.match(/Calories:\s*(\d+)/i);
+                    
+                    const hasValidContent = mealMatch && 
+                                         typeMatch && 
+                                         caloriesMatch && 
+                                         parseInt(caloriesMatch[1]) > 0 &&
+                                         mealMatch[1].trim().length >= 2;
+
+                    return hasValidContent && (
+                      <Tooltip title="Add to my meals" placement="top">
+                        <IconButton
+                          size={isMobile ? "small" : "medium"}
+                          onClick={async () => {
+                            try {
+                              const meal = {
+                                title: mealMatch[1].trim(),
+                                description: message.text,
+                                type: typeMatch[1] as 'breakfast' | 'lunch' | 'dinner' | 'snack',
+                                calories: parseInt(caloriesMatch[1]),
+                                protein: parseInt(message.text.match(/Protein:\s*(\d+)/i)?.[1] || '0'),
+                                carbs: parseInt(message.text.match(/Carbs:\s*(\d+)/i)?.[1] || '0'),
+                                fat: parseInt(message.text.match(/Fat:\s*(\d+)/i)?.[1] || '0')
+                              };
+
+                              const { data, error } = await supabase
+                                .from('meals')
+                                .insert([{
+                                  user_id: user?.id,
+                                  title: meal.title,
+                                  description: meal.description,
+                                  type: meal.type,
+                                  nutritional_info: {
+                                    calories: meal.calories,
+                                    protein: meal.protein,
+                                    carbs: meal.carbs,
+                                    fat: meal.fat
+                                  }
+                                }])
+                                .select()
+                                .single();
+
+                              if (error) throw error;
+                              
+                              setMessages(prev => [...prev, {
+                                id: Date.now().toString(),
+                                text: 'Meal saved successfully!',
+                                sender: 'assistant',
+                                timestamp: new Date()
+                              }]);
+                            } catch (error: any) {
+                              setMessages(prev => [...prev, {
+                                id: Date.now().toString(),
+                                text: `Failed to save meal: ${error.message}`,
+                                sender: 'assistant',
+                                timestamp: new Date()
+                              }]);
+                            }
+                          }}
+                          sx={{
+                            opacity: 0.7,
+                            '&:hover': { 
+                              opacity: 1,
+                              bgcolor: alpha(theme.palette.action.hover, 0.8),
+                            },
+                            ml: 1,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <AddIcon fontSize={isMobile ? "small" : "medium"} />
+                        </IconButton>
+                      </Tooltip>
+                    );
+                  })()}
                 </Box>
                 <Typography
                   variant="caption"
