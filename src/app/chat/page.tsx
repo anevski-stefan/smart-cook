@@ -1056,6 +1056,7 @@ export default function ChatPage() {
               }}
             >
               <Avatar
+                src={message.sender === 'user' && user?.user_metadata?.avatar_url ? user.user_metadata.avatar_url : undefined}
                 sx={{
                   bgcolor: message.sender === 'user' ? 
                     alpha(theme.palette.primary.main, 0.9) : 
