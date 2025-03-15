@@ -23,7 +23,6 @@ import AddIcon from '@mui/icons-material/Add';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import { supabase } from '@/utils/supabase-client';
 import { useAuth } from '@/contexts/AuthContext';
-import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import RecipeSuggestions from '@/components/RecipeSuggestions';
@@ -152,7 +151,6 @@ export default function IngredientsPage() {
 
   return (
     <>
-      <Navbar />
       <Container maxWidth="lg" sx={{ mt: 4, mb: 6, px: { xs: 2, sm: 3 } }}>
         <Box 
           display="flex" 

@@ -27,7 +27,6 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { useAuth } from '@/contexts/AuthContext';
-import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/utils/supabase-client';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -86,18 +85,45 @@ export default function ShoppingListPage() {
     if (!targetItem) return;
 
     try {
+      // Update shopping list item checked status
       const updatedItems = items.map((item) =>
         item.id === itemId ? { ...item, checked: !item.checked } : item
       );
       setItems(updatedItems);
 
-      const { error } = await supabase
+      const { error: shoppingListError } = await supabase
         .from('shopping_list')
         .update({ checked: !targetItem.checked })
         .eq('id', itemId);
 
-      if (error) throw error;
-      setMessage({ type: 'success', text: t('shoppingList.updateSuccess') });
+      if (shoppingListError) throw shoppingListError;
+
+      // If item is being checked, add to user_ingredients
+      if (!targetItem.checked) {
+        const { error: ingredientError } = await supabase
+          .from('user_ingredients')
+          .insert({
+            user_id: user?.id,
+            name: targetItem.name,
+            quantity: targetItem.amount,
+            unit: targetItem.unit,
+          });
+
+        if (ingredientError) throw ingredientError;
+        setMessage({ type: 'success', text: `${targetItem.name} added to My Ingredients` });
+      } else {
+        // If item is being unchecked, remove from user_ingredients
+        const { error: deleteError } = await supabase
+          .from('user_ingredients')
+          .delete()
+          .eq('user_id', user?.id)
+          .eq('name', targetItem.name)
+          .eq('quantity', targetItem.amount)
+          .eq('unit', targetItem.unit);
+
+        if (deleteError) throw deleteError;
+        setMessage({ type: 'success', text: `${targetItem.name} removed from My Ingredients` });
+      }
     } catch (error) {
       console.error('Error updating item:', error);
       setMessage({ type: 'error', text: t('shoppingList.updateError') });
@@ -164,8 +190,12 @@ export default function ShoppingListPage() {
 
       if (error) throw error;
 
+      const checkedCount = checkedIds.length;
       setItems(items.filter((item) => !item.checked));
-      setMessage({ type: 'success', text: t('shoppingList.deleteSuccess') });
+      setMessage({ 
+        type: 'success', 
+        text: `${checkedCount} ${checkedCount === 1 ? 'item' : 'items'} cleared from shopping list` 
+      });
     } catch (error) {
       console.error('Error clearing checked items:', error);
       setMessage({ type: 'error', text: t('shoppingList.deleteError') });
@@ -178,8 +208,7 @@ export default function ShoppingListPage() {
 
   return (
     <ProtectedRoute>
-      <Navbar />
-      <Container maxWidth="md" sx={{ mt: 4, px: { xs: 2, sm: 3 } }}>
+      <Container maxWidth="md" sx={{ mt: 4, pb: 8, px: { xs: 2, sm: 3 } }}>
         <Box 
           display="flex" 
           flexDirection={{ xs: 'column', sm: 'row' }} 
