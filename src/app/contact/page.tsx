@@ -11,6 +11,7 @@ import {
   useTheme,
   useMediaQuery,
   Alert,
+  Theme,
 } from '@mui/material';
 import {
   Email as EmailIcon,
@@ -54,19 +55,28 @@ export default function ContactPage() {
     },
   ];
 
+  const paperStyle = {
+    p: { xs: 3, md: 4 },
+    borderRadius: 2,
+    background: (theme: Theme) => theme.palette.mode === 'dark' 
+      ? 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)'
+      : theme.palette.background.paper,
+    backdropFilter: (theme: Theme) => theme.palette.mode === 'dark' ? 'blur(10px)' : 'none',
+    border: (theme: Theme) => theme.palette.mode === 'dark' 
+      ? '1px solid rgba(255,255,255,0.1)'
+      : 'none',
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically send the form data to your backend
     console.log('Form submitted:', formData);
     setSubmitted(true);
-    // Reset form after submission
     setFormData({
       name: '',
       email: '',
       subject: '',
       message: '',
     });
-    // Reset success message after 5 seconds
     setTimeout(() => setSubmitted(false), 5000);
   };
 
@@ -106,11 +116,16 @@ export default function ContactPage() {
       <Grid container spacing={4}>
         <Grid item xs={12} md={5}>
           <Paper
-            elevation={2}
+            elevation={theme.palette.mode === 'dark' ? 0 : 2}
             sx={{
-              p: { xs: 3, md: 4 },
-              borderRadius: 2,
+              ...paperStyle,
               height: '100%',
+              '&:hover': {
+                background: (theme: Theme) => theme.palette.mode === 'dark'
+                  ? 'linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)'
+                  : theme.palette.background.paper,
+              },
+              transition: 'all 0.3s ease',
             }}
           >
             <Typography
@@ -143,10 +158,15 @@ export default function ContactPage() {
 
         <Grid item xs={12} md={7}>
           <Paper
-            elevation={2}
+            elevation={theme.palette.mode === 'dark' ? 0 : 2}
             sx={{
-              p: { xs: 3, md: 4 },
-              borderRadius: 2,
+              ...paperStyle,
+              '&:hover': {
+                background: (theme: Theme) => theme.palette.mode === 'dark'
+                  ? 'linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)'
+                  : theme.palette.background.paper,
+              },
+              transition: 'all 0.3s ease',
             }}
           >
             <Typography
