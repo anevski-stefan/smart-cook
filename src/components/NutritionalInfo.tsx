@@ -55,9 +55,6 @@ export default function NutritionalInfo({ nutritionalInfo }: NutritionalInfoProp
 
   return (
     <Paper elevation={0} variant="outlined" sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
-        Nutritional Information
-      </Typography>
       <Grid container spacing={2}>
         {nutrients.map((nutrient) => (
           <Grid item xs={6} sm={3} key={nutrient.name}>
