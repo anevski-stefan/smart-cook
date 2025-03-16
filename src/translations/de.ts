@@ -27,10 +27,11 @@ export const de = {
     scan: "Scannen",
     shoppingList: "Einkaufsliste",
     savedRecipes: "Gespeicherte Rezepte",
-    myRecipes: "Meine Rezepte",
+    myMeals: "Meine Mahlzeiten",
     profile: "Profil",
     education: "Bildung",
-    chat: "Chat-Assistent"
+    chat: "Chat-Assistent",
+    basicIngredients: "Grundzutaten"
   },
   recipe: {
     ingredients: "Zutaten",
@@ -260,5 +261,40 @@ export const de = {
       contact: "Kontakt"
     },
     description: "Smart Cook ist Ihr KI-gestützter Kochassistent, der Ihnen hilft, Rezepte zu entdecken, Zutaten zu verwalten und mit Selbstvertrauen zu kochen."
+  },
+  weeklyGoals: {
+    title: "Wöchentliche Ziele",
+    addGoal: "Ziel Hinzufügen",
+    category: "Kategorie",
+    description: "Beschreibung",
+    selectDays: "Tage Auswählen",
+    editGoal: "Ziel Bearbeiten",
+    markAchieved: "Als Erreicht Markieren",
+    achieved: "Erreicht",
+    selectDatesPrompt: "Klicken Sie auf mehrere Daten, um sie auszuwählen. Klicken Sie erneut, um die Auswahl aufzuheben.",
+    selectedDates: "Ausgewählte Daten",
+    saveChanges: "Änderungen Speichern",
+    saveDates: "Daten Speichern",
+    saveToGoogleCalendar: "In Google Kalender Speichern",
+    categories: {
+      weeklyCalories: "Wöchentliche Kalorien",
+      numberOfMeals: "Anzahl der Mahlzeiten",
+      tryNewRecipes: "Neue Rezepte Ausprobieren",
+      cookBalancedMeal: "Ausgewogene Mahlzeit Kochen",
+      tryInternationalDish: "Internationales Gericht Ausprobieren",
+      reduceFoodWaste: "Lebensmittelverschwendung Reduzieren"
+    },
+    messages: {
+      fillAllFields: "Bitte füllen Sie alle Felder aus, bevor Sie ein Ziel hinzufügen.",
+      goalSavedLocally: "Ziel lokal gespeichert!",
+      goalSavedDatabase: "Ziel in der Datenbank gespeichert!",
+      goalUpdated: "Ziel erfolgreich aktualisiert!",
+      goalDeleted: "Ziel erfolgreich gelöscht!",
+      datesSelected: "{count} Datum/Daten erfolgreich gespeichert!",
+      selectDate: "Bitte wählen Sie mindestens ein Datum aus.",
+      futureDatesError: "Dieses Ziel kann nicht als erreicht markiert werden, da es zukünftige Termine enthält.",
+      goalAchieved: "Ziel als erreicht markiert! Herzlichen Glückwunsch!",
+      goalUnachieved: "Ziel als nicht erreicht markiert."
+    }
   },
 } as const; 

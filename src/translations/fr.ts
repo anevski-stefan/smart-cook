@@ -27,10 +27,11 @@ export const fr = {
     scan: "Scanner",
     shoppingList: "Liste de Courses",
     savedRecipes: "Recettes Sauvegardées",
-    myRecipes: "Mes Recettes",
+    myMeals: "Mes Repas",
     profile: "Profil",
     education: "Éducation",
-    chat: "Assistant de Chat"
+    chat: "Assistant de Chat",
+    basicIngredients: "Ingrédients de Base"
   },
   recipe: {
     ingredients: "Ingrédients",
@@ -300,6 +301,41 @@ export const fr = {
         question: "Comment empêcher ma planche à découper de glisser ?",
         answer: "Placez une serviette en papier ou un torchon humide sous votre planche à découper. Vous pouvez également utiliser des tapis antidérapants ou des planches avec des pieds en caoutchouc. Cela crée de la friction et maintient la planche stable pendant la découpe."
       }
+    }
+  },
+  weeklyGoals: {
+    title: "Objectifs Hebdomadaires",
+    addGoal: "Ajouter un Objectif",
+    category: "Catégorie",
+    description: "Description",
+    selectDays: "Sélectionner les Jours",
+    editGoal: "Modifier l'Objectif",
+    markAchieved: "Marquer comme Atteint",
+    achieved: "Atteint",
+    selectDatesPrompt: "Cliquez sur plusieurs dates pour les sélectionner. Cliquez à nouveau pour désélectionner.",
+    selectedDates: "Dates Sélectionnées",
+    saveChanges: "Enregistrer les Modifications",
+    saveDates: "Enregistrer les Dates",
+    saveToGoogleCalendar: "Enregistrer dans Google Agenda",
+    categories: {
+      weeklyCalories: "Calories Hebdomadaires",
+      numberOfMeals: "Nombre de Repas",
+      tryNewRecipes: "Essayer de Nouvelles Recettes",
+      cookBalancedMeal: "Cuisiner un Repas Équilibré",
+      tryInternationalDish: "Essayer un Plat International",
+      reduceFoodWaste: "Réduire le Gaspillage Alimentaire"
+    },
+    messages: {
+      fillAllFields: "Veuillez remplir tous les champs avant d'ajouter un objectif.",
+      goalSavedLocally: "Objectif enregistré localement !",
+      goalSavedDatabase: "Objectif enregistré dans la base de données !",
+      goalUpdated: "Objectif mis à jour avec succès !",
+      goalDeleted: "Objectif supprimé avec succès !",
+      datesSelected: "{count} date(s) enregistrée(s) avec succès !",
+      selectDate: "Veuillez sélectionner au moins une date.",
+      futureDatesError: "Cet objectif ne peut pas être marqué comme atteint car il contient des dates futures.",
+      goalAchieved: "Objectif marqué comme atteint ! Félicitations !",
+      goalUnachieved: "Objectif marqué comme non atteint."
     }
   }
 } as const; 

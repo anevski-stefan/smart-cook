@@ -27,10 +27,11 @@ export const es = {
     scan: "Escanear",
     shoppingList: "Lista de Compras",
     savedRecipes: "Recetas Guardadas",
-    myRecipes: "Mis Recetas",
+    myMeals: "Mis Comidas",
     profile: "Perfil",
     education: "Educación",
-    chat: "Asistente de Chat"
+    chat: "Asistente de Chat",
+    basicIngredients: "Ingredientes Básicos"
   },
   recipe: {
     ingredients: "Ingredientes",
@@ -300,6 +301,41 @@ export const es = {
         question: "¿Cómo evito que mi tabla de cortar se deslice?",
         answer: "Coloca una toalla de papel o paño de cocina húmedo debajo de tu tabla de cortar. También puedes usar alfombrillas antideslizantes o tablas con pies de goma. Esto crea fricción y mantiene la tabla estable mientras cortas."
       }
+    }
+  },
+  weeklyGoals: {
+    title: "Objetivos Semanales",
+    addGoal: "Agregar Objetivo",
+    category: "Categoría",
+    description: "Descripción",
+    selectDays: "Seleccionar Días",
+    editGoal: "Editar Objetivo",
+    markAchieved: "Marcar como Logrado",
+    achieved: "Logrado",
+    selectDatesPrompt: "Haga clic en varias fechas para seleccionarlas. Haga clic nuevamente para deseleccionar.",
+    selectedDates: "Fechas Seleccionadas",
+    saveChanges: "Guardar Cambios",
+    saveDates: "Guardar Fechas",
+    saveToGoogleCalendar: "Guardar en Google Calendar",
+    categories: {
+      weeklyCalories: "Calorías Semanales",
+      numberOfMeals: "Número de Comidas",
+      tryNewRecipes: "Probar Nuevas Recetas",
+      cookBalancedMeal: "Cocinar una Comida Equilibrada",
+      tryInternationalDish: "Probar un Plato Internacional",
+      reduceFoodWaste: "Reducir el Desperdicio de Alimentos"
+    },
+    messages: {
+      fillAllFields: "Por favor complete todos los campos antes de agregar un objetivo.",
+      goalSavedLocally: "¡Objetivo guardado localmente!",
+      goalSavedDatabase: "¡Objetivo guardado en la base de datos!",
+      goalUpdated: "¡Objetivo actualizado con éxito!",
+      goalDeleted: "¡Objetivo eliminado con éxito!",
+      datesSelected: "¡{count} fecha(s) guardada(s) con éxito!",
+      selectDate: "Por favor seleccione al menos una fecha.",
+      futureDatesError: "Este objetivo no puede marcarse como logrado porque contiene fechas futuras.",
+      goalAchieved: "¡Objetivo marcado como logrado! ¡Felicitaciones!",
+      goalUnachieved: "Objetivo marcado como no logrado."
     }
   }
 } as const; 

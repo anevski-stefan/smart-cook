@@ -305,5 +305,40 @@ export const en = {
         answer: "Place a damp paper towel or kitchen towel underneath your cutting board. You can also use non-slip mats or boards with rubber feet. This creates friction and keeps the board stable while chopping."
       }
     }
+  },
+  weeklyGoals: {
+    title: "Weekly Goals",
+    addGoal: "Add Goal",
+    category: "Category",
+    description: "Description",
+    selectDays: "Select Days",
+    editGoal: "Edit Goal",
+    markAchieved: "Mark Achieved",
+    achieved: "Achieved",
+    selectDatesPrompt: "Click on multiple dates to select them. Click again to deselect.",
+    selectedDates: "Selected Dates",
+    saveChanges: "Save Changes",
+    saveDates: "Save Dates",
+    saveToGoogleCalendar: "Save to Google Calendar",
+    categories: {
+      weeklyCalories: "Weekly Calories",
+      numberOfMeals: "Number of Meals",
+      tryNewRecipes: "Try New Recipes",
+      cookBalancedMeal: "Cook a Balanced Meal",
+      tryInternationalDish: "Try an International Dish",
+      reduceFoodWaste: "Reduce Food Waste"
+    },
+    messages: {
+      fillAllFields: "Please fill in all fields before adding a goal.",
+      goalSavedLocally: "Goal saved locally!",
+      goalSavedDatabase: "Goal saved to database!",
+      goalUpdated: "Goal updated successfully!",
+      goalDeleted: "Goal deleted successfully!",
+      datesSelected: "{count} date(s) saved successfully!",
+      selectDate: "Please select at least one date.",
+      futureDatesError: "This goal cannot be marked as achieved because it contains future dates.",
+      goalAchieved: "Goal marked as achieved! Congratulations!",
+      goalUnachieved: "Goal marked as not achieved."
+    }
   }
 } as const; 

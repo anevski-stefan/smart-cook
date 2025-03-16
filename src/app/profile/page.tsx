@@ -41,6 +41,16 @@ const categories = [
   'Reduce Food Waste',
 ];
 
+// Define a mapping for category keys
+const categoryKeys = {
+  'Weekly Calories': 'weeklyCalories',
+  'Number of Meals': 'numberOfMeals',
+  'Try New Recipes': 'tryNewRecipes',
+  'Cook a Balanced Meal': 'cookBalancedMeal',
+  'Try an International Dish': 'tryInternationalDish',
+  'Reduce Food Waste': 'reduceFoodWaste',
+} as const;
+
 // Helper function for JSON serialization of dates
 const serializeForStorage = (data: unknown) => {
   return JSON.stringify(data, (key, value) => {
@@ -51,6 +61,35 @@ const serializeForStorage = (data: unknown) => {
     return value;
   });
 };
+
+// Define the translation keys
+const translations = {
+  weeklyGoals: {
+    title: 'weeklyGoals.title',
+    category: 'weeklyGoals.category',
+    description: 'weeklyGoals.description',
+    addGoal: 'weeklyGoals.addGoal',
+    editGoal: 'weeklyGoals.editGoal',
+    selectDays: 'weeklyGoals.selectDays',
+    achieved: 'weeklyGoals.achieved',
+    markAchieved: 'weeklyGoals.markAchieved',
+    saveChanges: 'weeklyGoals.saveChanges',
+    saveDates: 'weeklyGoals.saveDates',
+    saveToGoogleCalendar: 'weeklyGoals.saveToGoogleCalendar',
+    selectDatesPrompt: 'weeklyGoals.selectDatesPrompt',
+    selectedDates: 'weeklyGoals.selectedDates',
+    messages: {
+      fillAllFields: 'weeklyGoals.messages.fillAllFields',
+      goalSavedLocally: 'weeklyGoals.messages.goalSavedLocally',
+      goalSavedDatabase: 'weeklyGoals.messages.goalSavedDatabase',
+      datesSelected: 'weeklyGoals.messages.datesSelected',
+      selectDate: 'weeklyGoals.messages.selectDate',
+      futureDatesError: 'weeklyGoals.messages.futureDatesError',
+      goalAchieved: 'weeklyGoals.messages.goalAchieved',
+      goalUnachieved: 'weeklyGoals.messages.goalUnachieved'
+    }
+  }
+} as const;
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -224,7 +263,7 @@ export default function ProfilePage() {
     if (!goal || !description) {
       setMessage({
         type: 'error',
-        text: 'Please fill in all fields before adding a goal.',
+        text: t('weeklyGoals.messages.fillAllFields'),
       });
       return;
     }
@@ -265,7 +304,7 @@ export default function ProfilePage() {
           
           setMessage({
             type: 'info',
-            text: 'Goal saved locally! (Database error: ' + error.message + ')',
+            text: t('weeklyGoals.messages.goalSavedLocally') + ' (Database error: ' + error.message + ')',
           });
         } else {
           // Use the returned data instead of fetching again
@@ -282,7 +321,7 @@ export default function ProfilePage() {
             
             setMessage({
               type: 'success',
-              text: 'Goal saved to database!',
+              text: t('weeklyGoals.messages.goalSavedDatabase'),
             });
           } else {
             // No data returned but no error either
@@ -292,7 +331,7 @@ export default function ProfilePage() {
             
             setMessage({
               type: 'success',
-              text: 'Goal saved!',
+              text: t('weeklyGoals.messages.goalSavedLocally'),
             });
           }
         }
@@ -304,7 +343,7 @@ export default function ProfilePage() {
         
         setMessage({
           type: 'success',
-          text: 'Goal saved locally!',
+          text: t('weeklyGoals.messages.goalSavedLocally'),
         });
       }
     } catch (error: unknown) {
@@ -316,7 +355,7 @@ export default function ProfilePage() {
       
       setMessage({
         type: 'info',
-        text: 'Goal saved locally! (Error: ' + (error instanceof Error ? error.message : 'Unknown error') + ')',
+        text: t('weeklyGoals.messages.goalSavedLocally') + ' (Error: ' + (error instanceof Error ? error.message : 'Unknown error') + ')',
       });
     }
     
@@ -559,7 +598,7 @@ export default function ProfilePage() {
               } else {
                 setMessage({
                   type: 'success',
-                  text: `${validDates.length} date(s) saved successfully!`,
+                  text: t('weeklyGoals.messages.datesSelected' as const, { count: validDates.length }),
                 });
               }
             } catch (updateError: unknown) {
@@ -574,7 +613,7 @@ export default function ProfilePage() {
           // No user or goal ID, just save locally
           setMessage({
             type: 'success',
-            text: `${validDates.length} date(s) saved locally!`,
+            text: t('weeklyGoals.messages.datesSelected' as const, { count: validDates.length }),
           });
         }
         
@@ -588,7 +627,7 @@ export default function ProfilePage() {
         
         setMessage({
           type: 'info',
-          text: `${validDates.length} date(s) saved locally! (Error: ${error instanceof Error ? error.message : 'Unknown error'})`,
+          text: t('weeklyGoals.messages.datesSelected' as const, { count: validDates.length }) + ' (Error: ' + (error instanceof Error ? error.message : 'Unknown error') + ')',
         });
       }
       
@@ -596,7 +635,7 @@ export default function ProfilePage() {
     } else if (selectedDates.length === 0) {
       setMessage({
         type: 'error',
-        text: 'Please select at least one date.',
+        text: t('weeklyGoals.messages.selectDate'),
       });
     }
   };
@@ -605,20 +644,19 @@ export default function ProfilePage() {
     // Check if the goal has future dates
     const goal = goals[index];
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day for fair comparison
+    today.setHours(0, 0, 0, 0);
     
-    // If the goal has dates, check if any are in the future
     if (goal.dates && goal.dates.length > 0) {
       const hasFutureDates = goal.dates.some(date => {
         const goalDate = new Date(date);
-        goalDate.setHours(0, 0, 0, 0); // Reset time to start of day
+        goalDate.setHours(0, 0, 0, 0);
         return goalDate > today;
       });
       
       if (hasFutureDates) {
         setMessage({
           type: 'warning',
-          text: 'This goal cannot be marked as achieved because it contains future dates.',
+          text: t('weeklyGoals.messages.futureDatesError'),
         });
         return;
       }
@@ -656,8 +694,8 @@ export default function ProfilePage() {
     setMessage({
       type: 'success',
       text: updatedGoals[index].achieved 
-        ? 'Goal marked as achieved! Congratulations!' 
-        : 'Goal marked as not achieved.',
+        ? t('weeklyGoals.messages.goalAchieved')
+        : t('weeklyGoals.messages.goalUnachieved'),
     });
   };
 
@@ -799,7 +837,7 @@ export default function ProfilePage() {
 
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom>
-                  Weekly Goals
+                  {t('weeklyGoals.title' as const)}
                 </Typography>
               </Grid>
 
@@ -807,7 +845,7 @@ export default function ProfilePage() {
                 <TextField
                   select
                   id="goalCategory"
-                  label="Category"
+                  label={t('weeklyGoals.category' as const)}
                   value={goal}
                   onChange={(e) => setGoal(e.target.value)}
                   fullWidth
@@ -818,7 +856,7 @@ export default function ProfilePage() {
                 >
                   {categories.map((category) => (
                     <MenuItem key={category} value={category}>
-                      {category}
+                      {t(`weeklyGoals.categories.${categoryKeys[category as keyof typeof categoryKeys]}` as const)}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -827,7 +865,7 @@ export default function ProfilePage() {
               <Grid item xs={12}>
                 <TextField
                   id="goalDescription"
-                  label="Description"
+                  label={t('weeklyGoals.description' as const)}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   fullWidth
@@ -846,7 +884,7 @@ export default function ProfilePage() {
                   fullWidth
                   onClick={handleAddGoal}
                 >
-                  Add Goal
+                  {t('weeklyGoals.addGoal' as const)}
                 </Button>
               </Grid>
 
@@ -866,7 +904,7 @@ export default function ProfilePage() {
 
         <Paper elevation={3} sx={{ p: 2, mt: 4, mb: 4 }}>
           <Typography variant="h6" gutterBottom>
-            Your Goals
+            {t('weeklyGoals.title' as const)}
           </Typography>
           <List>
             {goals.map((goal, index) => (
@@ -922,7 +960,7 @@ export default function ProfilePage() {
                     size="small"
                     sx={{ mr: 1 }}
                   >
-                    {goal.achieved ? "Achieved" : "Mark Achieved"}
+                    {goal.achieved ? t('weeklyGoals.achieved') : t('weeklyGoals.markAchieved')}
                   </Button>
                   <Button 
                     onClick={() => handleEditGoal(index)}
@@ -930,14 +968,14 @@ export default function ProfilePage() {
                     size="small"
                     sx={{ mr: 1 }}
                   >
-                    Edit
+                    {t('weeklyGoals.editGoal')}
                   </Button>
                   <Button 
                     onClick={() => handleOpenCalendar(index)}
                     size="small"
                     sx={{ mr: 1 }}
                   >
-                    Select Days
+                    {t('weeklyGoals.selectDays')}
                   </Button>
                   <IconButton
                     edge="end"
@@ -959,14 +997,16 @@ export default function ProfilePage() {
         </Paper>
 
         <Dialog open={open} onClose={handleClose}>
-          <DialogTitle>{editingGoalIndex !== null ? "Edit Goal" : "Select Multiple Days"}</DialogTitle>
+          <DialogTitle>
+            {editingGoalIndex !== null ? t('weeklyGoals.editGoal') : t('weeklyGoals.selectDays')}
+          </DialogTitle>
           <DialogContent>
             {editingGoalIndex !== null ? (
               <Box sx={{ pt: 1 }}>
                 <TextField
                   select
                   id="editGoalCategory"
-                  label="Category"
+                  label={t('weeklyGoals.category')}
                   value={editingGoal.category}
                   onChange={(e) => setEditingGoal({...editingGoal, category: e.target.value})}
                   fullWidth
@@ -977,14 +1017,14 @@ export default function ProfilePage() {
                 >
                   {categories.map((category) => (
                     <MenuItem key={category} value={category}>
-                      {category}
+                      {t(`weeklyGoals.categories.${categoryKeys[category as keyof typeof categoryKeys]}` as const)}
                     </MenuItem>
                   ))}
                 </TextField>
                 
                 <TextField
                   id="editGoalDescription"
-                  label="Description"
+                  label={t('weeklyGoals.description')}
                   value={editingGoal.description}
                   onChange={(e) => setEditingGoal({...editingGoal, description: e.target.value})}
                   fullWidth
@@ -999,11 +1039,11 @@ export default function ProfilePage() {
             ) : (
               <>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Click on multiple dates to select them. Click again to deselect.
+                  {t('weeklyGoals.selectDatesPrompt')}
                 </Typography>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DatePicker
-                    label="Select Dates"
+                    label={t('weeklyGoals.selectDays')}
                     value={null}
                     onChange={handleDateChange}
                     slotProps={{ 
@@ -1020,7 +1060,7 @@ export default function ProfilePage() {
                 
                 {selectedDates.length > 0 && (
                   <Box sx={{ mt: 2 }}>
-                    <Typography variant="subtitle2">Selected Dates:</Typography>
+                    <Typography variant="subtitle2">{t(translations.weeklyGoals.selectedDates)}:</Typography>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
                       {selectedDates.map((date, index) => (
                         <Chip 
@@ -1039,15 +1079,15 @@ export default function ProfilePage() {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={handleClose}>{t('common.cancel')}</Button>
             {editingGoalIndex !== null ? (
               <Button onClick={handleSaveEditedGoal} color="primary" variant="contained">
-                Save Changes
+                {t(translations.weeklyGoals.saveChanges)}
               </Button>
             ) : (
               <>
-                <Button onClick={handleSaveDate}>Save Dates</Button>
-                <Button onClick={handleSaveToGoogleCalendar}>Save to Google Calendar</Button>
+                <Button onClick={handleSaveDate}>{t(translations.weeklyGoals.saveDates)}</Button>
+                <Button onClick={handleSaveToGoogleCalendar}>{t(translations.weeklyGoals.saveToGoogleCalendar)}</Button>
               </>
             )}
           </DialogActions>

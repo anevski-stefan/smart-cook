@@ -3,11 +3,20 @@
 import { useState, useEffect } from 'react';
 import { translations } from '../translations';
 
-type NestedKeyOf<T> = T extends object
-  ? { [K in keyof T]: K extends string ? `${K}` | `${K}.${NestedKeyOf<T[K]>}` : never }[keyof T]
-  : never;
+// Get the type of the English translations as our base type
+type TranslationsType = typeof translations.en;
 
-type TranslationValue = string | Record<string, unknown>;
+// Create a type that represents all possible paths in the translations object
+type DotPrefix<T extends string> = T extends '' ? '' : `.${T}`;
+
+type DotNestedKeys<T> = (T extends object ?
+    { [K in Exclude<keyof T, symbol>]: `${K}${DotPrefix<DotNestedKeys<T[K]>>}` }[Exclude<keyof T, symbol>]
+    : '') extends infer D ? Extract<D, string> : never;
+
+// Our final TranslationKey type that includes all possible paths
+export type TranslationKey = DotNestedKeys<TranslationsType>;
+
+type TranslationParams = Record<string, string | number>;
 
 const LANG_COOKIE = 'NEXT_LOCALE';
 const DEFAULT_LOCALE = 'en';
@@ -27,10 +36,10 @@ export function useTranslation() {
     }
   }, []);
 
-  const t = (key: NestedKeyOf<typeof translations[typeof locale]>) => {
+  const t = (key: TranslationKey, params?: TranslationParams): string => {
     try {
       const keys = key.split('.');
-      let current: TranslationValue = translations[locale] || translations[DEFAULT_LOCALE];
+      let current: any = translations[locale] || translations[DEFAULT_LOCALE];
       
       if (!current) {
         console.error(`No translations found for locale: ${locale}`);
@@ -42,7 +51,7 @@ export function useTranslation() {
           console.error(`Translation path error: ${key} at key ${k}`, { current, locale, translations });
           return key;
         }
-        current = (current as Record<string, TranslationValue>)[k];
+        current = current[k];
         if (current === undefined) {
           console.error(`Missing translation for key: ${key} at ${k}`, { locale, translations });
           return key;
@@ -52,6 +61,13 @@ export function useTranslation() {
       if (typeof current !== 'string') {
         console.error(`Translation value error: ${key} is not a string`, { current, locale });
         return key;
+      }
+
+      // Replace parameters in the translation string
+      if (params) {
+        return Object.entries(params).reduce((str, [key, value]) => {
+          return str.replace(`{${key}}`, value.toString());
+        }, current);
       }
       
       return current;
