@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+
+export const dynamic = 'force-dynamic';
 
 const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent';
@@ -10,6 +13,42 @@ console.log('- Gemini API Key available:', !!process.env.NEXT_PUBLIC_GEMINI_API_
 
 export async function POST(request: NextRequest) {
   try {
+    // Create the Supabase client with proper cookie handling
+    const supabase = createRouteHandlerClient({ cookies });
+
+    // Check authentication first
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    
+    if (authError) {
+      console.error('Authentication error:', authError);
+      console.error('Auth error details:', {
+        message: authError.message,
+        status: authError.status,
+        name: authError.name
+      });
+      return NextResponse.json(
+        { error: 'Authentication failed: ' + authError.message },
+        { status: 401 }
+      );
+    }
+
+    if (!session) {
+      console.error('No session found');
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    // Log session info for debugging
+    console.log('Session info:', {
+      userId: session.user.id,
+      expiresAt: session.expires_at || 'No expiry set',
+      tokenExpiry: session.access_token && session.expires_at 
+        ? new Date(session.expires_at * 1000).toISOString() 
+        : 'No token or expiry'
+    });
+
     if (!GEMINI_API_KEY) {
       console.error('Missing Gemini API key in environment variables');
       return NextResponse.json(
@@ -20,13 +59,11 @@ export async function POST(request: NextRequest) {
 
     const contentType = request.headers.get('content-type') || '';
     let message: string;
-    let userId: string;
     let context: any[] = [];
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData();
       message = formData.get('message') as string || '';
-      userId = formData.get('userId') as string;
       const image = formData.get('image') as File;
       const contextStr = formData.get('context') as string;
       if (contextStr) {
@@ -65,26 +102,30 @@ export async function POST(request: NextRequest) {
     } else {
       const body = await request.json();
       message = body.message;
-      userId = body.userId;
       context = body.context || [];
     }
 
-    if (!message || !userId) {
+    if (!message) {
       return NextResponse.json(
-        { error: 'Message and userId are required' },
+        { error: 'Message is required' },
         { status: 400 }
       );
     }
 
-    // Get user's ingredients from the database
-    const supabase = createClient();
+    // Get user's ingredients from the database using session user ID
     const { data: userIngredients, error: ingredientsError } = await supabase
       .from('user_ingredients')
       .select('*')
-      .eq('user_id', userId);
+      .eq('user_id', session.user.id);
 
     if (ingredientsError) {
       console.error('Error fetching user ingredients:', ingredientsError);
+      console.error('Database error details:', {
+        message: ingredientsError.message,
+        details: ingredientsError.details,
+        hint: ingredientsError.hint,
+        code: ingredientsError.code
+      });
       return NextResponse.json(
         { error: 'Failed to fetch user ingredients' },
         { status: 500 }

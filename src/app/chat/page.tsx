@@ -157,25 +157,32 @@ export default function ChatPage() {
         return;
       }
       
-      // Check if the chat exists
-      const { data: chatExists, error: chatError } = await supabase
+      // Check if the user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        throw new Error('Authentication error: ' + (sessionError?.message || 'No session found'));
+      }
+      
+      // Check if the chat exists and belongs to the user
+      const { data: chatData, error: chatError } = await supabase
         .from('chats')
-        .select('id')
+        .select('id, user_id')
         .eq('id', chatId)
         .single();
         
       if (chatError) {
-        // Only log as error if it's not a "not found" error
-        if (chatError.code !== 'PGRST116') {
-          console.error('Error checking chat:', chatError);
-        } else {
-          console.warn('Chat not found:', chatId);
-        }
+        console.error('Error checking chat:', chatError);
+        throw chatError;
+      }
+      
+      if (!chatData) {
+        console.warn('Chat does not exist:', chatId);
         return;
       }
       
-      if (!chatExists) {
-        console.warn('Chat does not exist:', chatId);
+      if (chatData.user_id !== session.user.id) {
+        console.error('Chat does not belong to current user');
         return;
       }
       
@@ -193,113 +200,37 @@ export default function ChatPage() {
         throw error;
       }
 
-      console.log('Loaded messages:', messagesData.length);
-      
-      // Log the raw message data from the database
+      console.log('Loaded messages:', messagesData?.length || 0);
       console.log('Raw message data from database:', messagesData);
       
       if (!messagesData || messagesData.length === 0) {
-        console.log('No messages found for this chat');
-        
-        // Use function form of setMessages to access current state
-        setMessages(currentMessages => {
-          // Check if we already have unsaved messages in the state for this chat
-          const unsavedMessages = currentMessages.filter(msg => msg.chat_id === chatId);
-          if (unsavedMessages.length > 0) {
-            console.log('Found unsaved messages in state, preserving them:', unsavedMessages.length);
-            return currentMessages; // Keep the existing messages
-          }
-          
-          // Try to load messages from localStorage as a fallback
-          const localMessages = loadMessagesFromLocalStorage(chatId);
-          if (localMessages.length > 0) {
-            console.log('Found messages in localStorage, using them:', localMessages.length);
-            return localMessages;
-          }
-          
-          // Remove the welcome message
-          return [];
-        });
+        console.log('No messages found in database for chat:', chatId);
+        setMessages([]);
         return;
       }
       
-      // Map the database messages to the UI format with explicit type checking
-      const mappedMessages = messagesData.map(msg => {
-        // Ensure sender is either 'user' or 'assistant'
-        const sender = msg.sender === 'user' ? 'user' as const : 'assistant' as const;
-        
-        // Log each message as it's being mapped
-        console.log('Mapping message:', {
-          id: msg.id,
-          content: msg.content,
-          sender: msg.sender,
-          created_at: msg.created_at
-        });
-        
-        return {
-          id: msg.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          text: msg.content || '',
-          sender: sender,
-          timestamp: new Date(msg.created_at),
-          image: msg.image_url,
-          chat_id: msg.chat_id
-        };
-      });
+      // Map the database messages to the UI format
+      const mappedMessages = messagesData.map(msg => ({
+        id: msg.id,
+        text: msg.content,
+        sender: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
+        timestamp: new Date(msg.created_at),
+        image: msg.image_url,
+        chat_id: msg.chat_id
+      }));
       
       console.log('Mapped messages for UI:', mappedMessages);
+      setMessages(mappedMessages);
       
-      // Use function form of setMessages to access current state
-      setMessages(currentMessages => {
-        // Check for any unsaved messages in the current state
-        const existingMessages = currentMessages.filter(msg => msg.chat_id === chatId);
-        const dbMessageIds = new Set(mappedMessages.map(msg => msg.id));
-        const unsavedMessages = existingMessages.filter(msg => !dbMessageIds.has(msg.id));
-        
-        // Also check localStorage for any messages that might not be in the database yet
-        const localMessages = loadMessagesFromLocalStorage(chatId);
-        const additionalLocalMessages = localMessages.filter(msg => 
-          !dbMessageIds.has(msg.id) && !existingMessages.some(m => m.id === msg.id)
-        );
-        
-        if (unsavedMessages.length > 0 || additionalLocalMessages.length > 0) {
-          console.log('Found messages that need to be preserved:', 
-            unsavedMessages.length + additionalLocalMessages.length);
-          
-          // Combine all messages
-          const combinedMessages = [
-            ...mappedMessages, 
-            ...unsavedMessages,
-            ...additionalLocalMessages
-          ];
-          
-          // Remove duplicates by ID
-          const uniqueMessages = Array.from(
-            new Map(combinedMessages.map(msg => [msg.id, msg])).values()
-          );
-          
-          // Sort by timestamp to maintain chronological order
-          uniqueMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-          console.log('Combined unique messages count:', uniqueMessages.length);
-          return uniqueMessages;
-        } else if (mappedMessages.length > 0) {
-          return mappedMessages;
-        }
-        
-        return currentMessages;
-      });
     } catch (error) {
       console.error('Error loading messages:', error);
-      
-      // If database load fails, try to load from localStorage as a fallback
-      if (currentChat) {
-        const localMessages = loadMessagesFromLocalStorage(currentChat.id);
-        if (localMessages.length > 0) {
-          console.log('Database load failed, using localStorage messages:', localMessages.length);
-          setMessages(localMessages);
-        }
-      }
+      setMessages([]);
+      setNotification({ 
+        type: 'error', 
+        message: 'Failed to load messages. Please try refreshing the page.' 
+      });
     }
-  }, [supabase, currentChat, loadMessagesFromLocalStorage]);
+  }, [supabase, setNotification]);
 
   // Memoize loadChats function
   const loadChats = useCallback(async () => {
@@ -404,18 +335,14 @@ export default function ChatPage() {
 
   // Load messages when chat changes
   useEffect(() => {
-    if (currentChat && !isProcessingMessage) {
+    if (currentChat && user) {
       console.log('Current chat changed, loading messages for:', currentChat.id);
-      // Don't include the messages check here as it causes issues
       loadMessages(currentChat.id);
-    } else if (!currentChat && messages.length > 0) {
-      // Only clear messages if there's no current chat AND we have messages to clear
+    } else if (!currentChat) {
       console.log('No current chat, clearing messages');
       setMessages([]);
-    } else {
-      console.log('Skipping message reload because a message is being processed or no messages to clear');
     }
-  }, [currentChat, loadMessages, isProcessingMessage, messages.length]);
+  }, [currentChat, loadMessages, user]);
 
   // Make sure sidebar is visible on desktop
   useEffect(() => {
@@ -686,7 +613,7 @@ export default function ChatPage() {
       e.preventDefault();
     }
     
-    if (!newMessage.trim() && !imageFile && !user) return;
+    if (!newMessage.trim() && !imageFile) return;
 
     // Check if user is authenticated
     if (!user) {
@@ -750,110 +677,6 @@ export default function ChatPage() {
     const messageId = Date.now().toString();
     let imageUrl = '';
 
-    // Handle image upload
-    if (imageFile) {
-      try {
-        console.log('Uploading image...');
-        
-        // Ensure user is still authenticated
-        if (!user || !user.id) {
-          throw new Error('User not authenticated for image upload');
-        }
-        
-        const filePath = `chat/${user.id}/${messageId}`;
-        console.log('Uploading to path:', filePath);
-        
-        // Upload the file directly without checking bucket
-        const { error: uploadError, data: uploadData } = await supabase.storage
-          .from('images')
-          .upload(filePath, imageFile, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: imageFile.type
-          });
-
-        if (uploadError) {
-          console.error('Image upload error:', uploadError);
-          console.error('Upload error code:', uploadError.message);
-          throw uploadError;
-        }
-        
-        if (!uploadData) {
-          console.warn('No upload data returned');
-          throw new Error('No upload data returned from Supabase');
-        }
-        
-        console.log('Upload successful:', uploadData);
-
-        // Get the public URL using the storage API
-        const { data: urlData } = await supabase.storage
-          .from('images')
-          .getPublicUrl(filePath);
-
-        if (!urlData?.publicUrl) {
-          console.error('Failed to get public URL');
-          throw new Error('Failed to get public URL for uploaded image');
-        }
-
-        // Ensure the URL uses HTTPS and add cache control
-        const timestamp = new Date().getTime();
-        let publicUrl = urlData.publicUrl.replace('http://', 'https://');
-        
-        // Log the raw URL for debugging
-        console.log('Raw public URL from Supabase:', publicUrl);
-        
-        // Check if URL matches the pattern in next.config.ts
-        const supabaseUrlPattern = /^https:\/\/vjfsascagdencbewveoz\.supabase\.co\/storage\/v1\/object\/public\//;
-        if (!supabaseUrlPattern.test(publicUrl)) {
-          console.warn('URL may not match the pattern in next.config.ts:', publicUrl);
-          console.warn('Expected pattern: https://vjfsascagdencbewveoz.supabase.co/storage/v1/object/public/...');
-          
-          // Try to fix the URL if it doesn't match the expected pattern
-          if (publicUrl.includes('supabase.co') && publicUrl.includes('storage/v1/object')) {
-            console.log('Attempting to fix URL format...');
-            // Extract the important parts and reconstruct the URL
-            const urlParts = publicUrl.split('/');
-            const bucketIndex = urlParts.findIndex(part => part === 'object') + 1;
-            if (bucketIndex > 0 && bucketIndex < urlParts.length) {
-              const bucket = urlParts[bucketIndex];
-              const pathParts = urlParts.slice(bucketIndex + 1);
-              const newUrl = `https://vjfsascagdencbewveoz.supabase.co/storage/v1/object/public/${bucket}/${pathParts.join('/')}`;
-              console.log('Fixed URL:', newUrl);
-              publicUrl = newUrl;
-            }
-          }
-        } else {
-          console.log('URL matches expected pattern in next.config.ts');
-        }
-        
-        // Add cache busting parameter to prevent caching issues
-        imageUrl = publicUrl.includes('?') 
-          ? `${publicUrl}&_cb=${timestamp}` 
-          : `${publicUrl}?_cb=${timestamp}`;
-        
-        console.log('Final image URL with cache busting:', imageUrl);
-        
-        // Validate the URL is properly formatted
-        try {
-          new URL(imageUrl);
-          console.log('Image URL is valid');
-        } catch (error) {
-          console.error('Invalid image URL format:', error);
-          throw new Error('Invalid image URL format');
-        }
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          text: `Error uploading image: ${error instanceof Error ? error.message : 'Something went wrong'}. Please try again.`,
-          sender: 'assistant',
-          timestamp: new Date()
-        }]);
-        setIsLoading(false);
-        return;
-      }
-    }
-
     // Create and add user message
     const userMessage: Message = {
       id: messageId,
@@ -865,7 +688,6 @@ export default function ChatPage() {
     };
 
     console.log('Adding user message to UI:', userMessage);
-    console.log('Current messages state before adding:', messages);
     
     // Use the safe update function instead of directly setting state
     safelyUpdateMessages(userMessage);
@@ -887,127 +709,126 @@ export default function ChatPage() {
       // Continue with the conversation even if saving fails
     }
 
-    try {
-      console.log('Fetching AI response...');
-      
-      // Ensure user is still authenticated
-      if (!user || !user.id) {
-        throw new Error('User not authenticated when sending message to API');
-      }
-      
-      let response;
-      if (imageFile) {
-        const formData = new FormData();
-        formData.append('image', imageFile);
-        formData.append('userId', user.id);
-        formData.append('message', newMessage || '');
-        formData.append('chatId', chatId);
-        formData.append('context', JSON.stringify(messages.slice(-5)));
-
-        console.log('Sending image message to API with chat ID:', chatId);
-        response = await fetch('/api/chat', {
-          method: 'POST',
-          body: formData
-        });
-      } else {
-        console.log('Sending text message to API with chat ID:', chatId);
-        response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            message: newMessage, 
-            userId: user.id,
-            chatId: chatId,
-            context: messages.slice(-5)
-          })
-        });
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-        console.error('API response error:', errorData);
-        throw new Error(errorData.error || `Failed to get response: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json().catch(() => {
-        throw new Error('Failed to parse API response');
-      });
-      
-      if (!data || !data.reply) {
-        console.error('Invalid API response:', data);
-        throw new Error('Invalid response from API');
-      }
-      
-      console.log('Received AI response:', data);
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: data.reply,
-        sender: 'assistant',
-        timestamp: new Date(),
-        chat_id: chatId
-      };
-
-      console.log('Adding assistant message to UI:', assistantMessage);
-      // Use the safe update function for the assistant message too
-      safelyUpdateMessages(assistantMessage);
-      
-      // Save assistant message to database using the same chatId
+    const sendRequest = async (retryCount = 0) => {
       try {
-        await saveMessage(assistantMessage, chatId);
-      } catch (error) {
-        // Only log meaningful errors
-        if (isErrorMeaningful(error)) {
-          console.error('Failed to save assistant message:', error);
-        } else {
-          console.warn('Empty error object when saving assistant message');
+        console.log('Fetching AI response...');
+        
+        // Get fresh session before making request
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session) {
+          console.error('Session error:', sessionError);
+          throw new Error('Authentication error: ' + (sessionError?.message || 'No session found'));
         }
-        // Continue with the conversation even if saving fails
-      }
+        
+        let response;
+        if (imageFile) {
+          const formData = new FormData();
+          formData.append('image', imageFile);
+          formData.append('message', newMessage || '');
+          formData.append('context', JSON.stringify(messages.slice(-5)));
 
-      // Update chat title if it's a new chat and we have a text message
-      if (isNewChat && newMessage.trim()) {
-        console.log('Updating chat title...');
-        const title = newMessage.slice(0, 50) + (newMessage.length > 50 ? '...' : '');
-        await supabase
-          .from('chats')
-          .update({ title })
-          .eq('id', chatId);
+          console.log('Sending image message to API with chat ID:', chatId);
+          response = await fetch('/api/chat', {
+            method: 'POST',
+            body: formData
+          });
+        } else {
+          console.log('Sending text message to API with chat ID:', chatId);
+          response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              message: newMessage,
+              context: messages.slice(-5)
+            })
+          });
+        }
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+          console.error('API response error:', errorData);
           
-        setChats(prev => prev.map(chat => 
-          chat.id === chatId ? { ...chat, title } : chat
-        ));
-      }
+          // If unauthorized and we haven't retried too many times, try to refresh session
+          if (response.status === 401 && retryCount < 2) {
+            console.log('Attempting to refresh session...');
+            const { error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError) {
+              throw new Error('Failed to refresh session: ' + refreshError.message);
+            }
+            // Retry the request
+            return sendRequest(retryCount + 1);
+          }
+          
+          throw new Error(errorData.error || `Failed to get response: ${response.status} ${response.statusText}`);
+        }
 
-    } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: `Error: ${error instanceof Error ? error.message : 'Something went wrong. Please try again.'}`,
-        sender: 'assistant',
-        timestamp: new Date(),
-        chat_id: chatId
-      };
-      
-      // Use the safe update function for the error message
-      safelyUpdateMessages(errorMessage);
-      
-      // Save error message to database
-      try {
-        await saveMessage(errorMessage, chatId);
-      } catch (saveError) {
-        console.error('Failed to save error message:', saveError);
+        const data = await response.json();
+        
+        if (!data || !data.reply) {
+          console.error('Invalid API response:', data);
+          throw new Error('Invalid response from API');
+        }
+        
+        console.log('Received AI response:', data);
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: data.reply,
+          sender: 'assistant',
+          timestamp: new Date(),
+          chat_id: chatId
+        };
+
+        console.log('Adding assistant message to UI:', assistantMessage);
+        // Use the safe update function for the assistant message too
+        safelyUpdateMessages(assistantMessage);
+        
+        // Save assistant message to database
+        try {
+          await saveMessage(assistantMessage, chatId);
+        } catch (error) {
+          // Only log meaningful errors
+          if (isErrorMeaningful(error)) {
+            console.error('Failed to save assistant message:', error);
+          }
+        }
+
+        // Update chat title if it's a new chat
+        if (isNewChat && newMessage.trim()) {
+          console.log('Updating chat title...');
+          const title = newMessage.slice(0, 50) + (newMessage.length > 50 ? '...' : '');
+          await supabase
+            .from('chats')
+            .update({ title })
+            .eq('id', chatId);
+            
+          setChats(prev => prev.map(chat => 
+            chat.id === chatId ? { ...chat, title } : chat
+          ));
+        }
+      } catch (error) {
+        console.error('Error in chat request:', error);
+        safelyUpdateMessages({
+          id: Date.now().toString(),
+          text: error instanceof Error ? error.message : 'An error occurred while processing your message',
+          sender: 'assistant',
+          timestamp: new Date(),
+          chat_id: chatId
+        });
+      } finally {
+        setIsLoading(false);
+        setIsProcessingMessage(false);
+        if (selectedImage) {
+          setSelectedImage(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }
       }
-    } finally {
-      setIsLoading(false);
-      setSelectedImage(null);
-      // Reset the processing flag after everything is done
-      setIsProcessingMessage(false);
-      // Clear the pending messages ref
-      pendingMessagesRef.current = [];
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
+    };
+
+    // Start the request process
+    await sendRequest();
   };
 
   // Add a function to handle message time display
