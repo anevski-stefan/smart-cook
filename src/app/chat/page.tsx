@@ -1146,29 +1146,6 @@ export default function ChatPage() {
     }
   };
 
-  // Add a function to add a test message directly to the UI
-  const addTestMessage = () => {
-    if (currentChat) {
-      console.log('Adding test message to UI');
-      const testMessage: Message = {
-        id: `test-${Date.now()}`,
-        text: 'This is a test message to verify the UI is working.',
-        sender: 'assistant',
-        timestamp: new Date(),
-        chat_id: currentChat.id
-      };
-      
-      setMessages(prev => {
-        console.log('Previous messages before adding test message:', prev);
-        const updatedMessages = [...prev, testMessage];
-        console.log('Updated messages with test message:', updatedMessages);
-        return updatedMessages;
-      });
-    } else {
-      console.error('No current chat to add test message to');
-    }
-  };
-
   // Fix the extractMealInfo function
   const extractMealInfo = (text: string) => {
     interface Ingredient {
@@ -1658,33 +1635,6 @@ export default function ChatPage() {
             >
               Chat Assistant
             </Typography>
-            
-            {/* Add debug buttons */}
-            <Box sx={{ display: 'flex' }}>
-              <IconButton
-                onClick={() => {
-                  console.log('Debug - Current messages:', messages);
-                  console.log('Debug - Current chat:', currentChat);
-                  
-                  // Force refresh messages
-                  if (currentChat) {
-                    console.log('Debug - Forcing message refresh for chat:', currentChat.id);
-                    loadMessages(currentChat.id);
-                  }
-                }}
-                sx={{ ml: 1 }}
-              >
-                <SearchIcon fontSize="small" />
-              </IconButton>
-              
-              {/* Add a test message button */}
-              <IconButton
-                onClick={addTestMessage}
-                sx={{ ml: 1 }}
-              >
-                <AddIcon fontSize="small" />
-              </IconButton>
-            </Box>
           </Box>
         </Box>
         
