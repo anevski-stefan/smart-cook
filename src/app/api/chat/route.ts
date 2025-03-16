@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,7 @@ console.log('- Gemini API Key available:', !!process.env.NEXT_PUBLIC_GEMINI_API_
 export async function POST(request: NextRequest) {
   try {
     // Create the Supabase client with proper cookie handling
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient();
 
     // Check authentication first
     const { data: { session }, error: authError } = await supabase.auth.getSession();
