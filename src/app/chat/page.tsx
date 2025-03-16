@@ -201,23 +201,25 @@ export default function ChatPage() {
       if (!messagesData || messagesData.length === 0) {
         console.log('No messages found for this chat');
         
-        // Check if we already have unsaved messages in the state for this chat
-        const unsavedMessages = messages.filter(msg => msg.chat_id === chatId);
-        if (unsavedMessages.length > 0) {
-          console.log('Found unsaved messages in state, preserving them:', unsavedMessages.length);
-          return; // Keep the existing messages
-        }
-        
-        // Try to load messages from localStorage as a fallback
-        const localMessages = loadMessagesFromLocalStorage(chatId);
-        if (localMessages.length > 0) {
-          console.log('Found messages in localStorage, using them:', localMessages.length);
-          setMessages(localMessages);
-          return;
-        }
-        
-        // Remove the welcome message
-        setMessages([]);
+        // Use function form of setMessages to access current state
+        setMessages(currentMessages => {
+          // Check if we already have unsaved messages in the state for this chat
+          const unsavedMessages = currentMessages.filter(msg => msg.chat_id === chatId);
+          if (unsavedMessages.length > 0) {
+            console.log('Found unsaved messages in state, preserving them:', unsavedMessages.length);
+            return currentMessages; // Keep the existing messages
+          }
+          
+          // Try to load messages from localStorage as a fallback
+          const localMessages = loadMessagesFromLocalStorage(chatId);
+          if (localMessages.length > 0) {
+            console.log('Found messages in localStorage, using them:', localMessages.length);
+            return localMessages;
+          }
+          
+          // Remove the welcome message
+          return [];
+        });
         return;
       }
       
@@ -246,40 +248,45 @@ export default function ChatPage() {
       
       console.log('Mapped messages for UI:', mappedMessages);
       
-      // Check for any unsaved messages in the current state
-      const existingMessages = messages.filter(msg => msg.chat_id === chatId);
-      const dbMessageIds = new Set(mappedMessages.map(msg => msg.id));
-      const unsavedMessages = existingMessages.filter(msg => !dbMessageIds.has(msg.id));
-      
-      // Also check localStorage for any messages that might not be in the database yet
-      const localMessages = loadMessagesFromLocalStorage(chatId);
-      const additionalLocalMessages = localMessages.filter(msg => 
-        !dbMessageIds.has(msg.id) && !existingMessages.some(m => m.id === msg.id)
-      );
-      
-      if (unsavedMessages.length > 0 || additionalLocalMessages.length > 0) {
-        console.log('Found messages that need to be preserved:', 
-          unsavedMessages.length + additionalLocalMessages.length);
+      // Use function form of setMessages to access current state
+      setMessages(currentMessages => {
+        // Check for any unsaved messages in the current state
+        const existingMessages = currentMessages.filter(msg => msg.chat_id === chatId);
+        const dbMessageIds = new Set(mappedMessages.map(msg => msg.id));
+        const unsavedMessages = existingMessages.filter(msg => !dbMessageIds.has(msg.id));
         
-        // Combine all messages
-        const combinedMessages = [
-          ...mappedMessages, 
-          ...unsavedMessages,
-          ...additionalLocalMessages
-        ];
-        
-        // Remove duplicates by ID
-        const uniqueMessages = Array.from(
-          new Map(combinedMessages.map(msg => [msg.id, msg])).values()
+        // Also check localStorage for any messages that might not be in the database yet
+        const localMessages = loadMessagesFromLocalStorage(chatId);
+        const additionalLocalMessages = localMessages.filter(msg => 
+          !dbMessageIds.has(msg.id) && !existingMessages.some(m => m.id === msg.id)
         );
         
-        // Sort by timestamp to maintain chronological order
-        uniqueMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-        console.log('Combined unique messages count:', uniqueMessages.length);
-        setMessages(uniqueMessages);
-      } else if (mappedMessages.length > 0) {
-        setMessages(mappedMessages);
-      }
+        if (unsavedMessages.length > 0 || additionalLocalMessages.length > 0) {
+          console.log('Found messages that need to be preserved:', 
+            unsavedMessages.length + additionalLocalMessages.length);
+          
+          // Combine all messages
+          const combinedMessages = [
+            ...mappedMessages, 
+            ...unsavedMessages,
+            ...additionalLocalMessages
+          ];
+          
+          // Remove duplicates by ID
+          const uniqueMessages = Array.from(
+            new Map(combinedMessages.map(msg => [msg.id, msg])).values()
+          );
+          
+          // Sort by timestamp to maintain chronological order
+          uniqueMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+          console.log('Combined unique messages count:', uniqueMessages.length);
+          return uniqueMessages;
+        } else if (mappedMessages.length > 0) {
+          return mappedMessages;
+        }
+        
+        return currentMessages;
+      });
     } catch (error) {
       console.error('Error loading messages:', error);
       
@@ -292,7 +299,7 @@ export default function ChatPage() {
         }
       }
     }
-  }, [supabase, messages, currentChat, loadMessagesFromLocalStorage]);
+  }, [supabase, currentChat, loadMessagesFromLocalStorage]);
 
   // Memoize loadChats function
   const loadChats = useCallback(async () => {
@@ -309,22 +316,26 @@ export default function ChatPage() {
       setChats(chatsData);
       setFilteredChats(chatsData);
       
-      // If there's no current chat but we have chats, select the first one
-      if (chatsData.length > 0 && !currentChat) {
-        console.log('No current chat selected, selecting first chat:', chatsData[0].id);
-        setCurrentChat(chatsData[0]);
-      } else if (currentChat) {
-        // If we have a current chat, make sure it still exists in the loaded chats
-        const chatStillExists = chatsData.some(chat => chat.id === currentChat.id);
-        if (!chatStillExists && chatsData.length > 0) {
-          console.log('Current chat no longer exists, selecting first chat:', chatsData[0].id);
-          setCurrentChat(chatsData[0]);
+      // Use function form of setCurrentChat to avoid dependency on currentChat
+      setCurrentChat(currentChatValue => {
+        // If there's no current chat but we have chats, select the first one
+        if (chatsData.length > 0 && !currentChatValue) {
+          console.log('No current chat selected, selecting first chat:', chatsData[0].id);
+          return chatsData[0];
+        } else if (currentChatValue) {
+          // If we have a current chat, make sure it still exists in the loaded chats
+          const chatStillExists = chatsData.some(chat => chat.id === currentChatValue.id);
+          if (!chatStillExists && chatsData.length > 0) {
+            console.log('Current chat no longer exists, selecting first chat:', chatsData[0].id);
+            return chatsData[0];
+          }
         }
-      }
+        return currentChatValue;
+      });
     } catch (error) {
       console.error('Error loading chats:', error);
     }
-  }, [supabase, currentChat]);
+  }, [supabase]);
 
   const autoResizeTextField = useCallback(() => {
     const textarea = textFieldRef.current;
@@ -453,43 +464,17 @@ export default function ChatPage() {
       return;
     }
 
-    // If we already have a current chat with no messages, don't create a new one
-    if (currentChat && messages.length === 0) {
+    // Check if current chat exists and is empty
+    if (currentChat && messages.filter(msg => msg.chat_id === currentChat.id).length === 0) {
+      setNotification({ 
+        type: 'error', 
+        message: 'Please add a message to your current chat before creating a new one.' 
+      });
       return;
     }
 
     try {
-      // Check if the current chat has any messages
-      if (currentChat) {
-        const { data: currentMessages } = await supabase
-          .from('chat_messages')
-          .select('id')
-          .eq('chat_id', currentChat.id)
-          .limit(1);
-
-        // If current chat has no messages, just keep using it
-        if (!currentMessages || currentMessages.length === 0) {
-          return;
-        }
-      }
-
-      // Check for any existing empty chats
-      for (const chat of chats) {
-        const { data: chatMessages } = await supabase
-          .from('chat_messages')
-          .select('id')
-          .eq('chat_id', chat.id)
-          .limit(1);
-
-        // If we find an empty chat, use it instead of creating a new one
-        if (!chatMessages || chatMessages.length === 0) {
-          setCurrentChat(chat);
-          setMessages([]);
-          return;
-        }
-      }
-
-      // If no empty chats found, create a new one
+      // Always create a new chat when the function is called
       console.log('Creating new chat from button click...');
       const { data: chat, error } = await supabase
         .from('chats')
@@ -506,10 +491,8 @@ export default function ChatPage() {
       console.log('New chat created successfully:', chat);
       setChats(prev => [chat, ...prev]);
       setCurrentChat(chat);
-      // Only clear messages if we're actually switching to a new chat
-      if (!currentChat || currentChat.id !== chat.id) {
-        setMessages([]);
-      }
+      // Clear messages when switching to a new chat
+      setMessages([]);
     } catch (error) {
       console.error('Error creating new chat:', error);
       alert('Failed to create new chat. Please try again.');
